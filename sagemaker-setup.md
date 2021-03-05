@@ -36,6 +36,7 @@ However even getting to this point is an involved setup. Below I describe the st
     2. `files.pythonhosted.org`
 18. Note down the ip address by running the command `nslookup pypi.org`. Do the same for the second hostname. These are the ipaddress that we need to add to default security group to scope it down![nslookup](https://user-images.githubusercontent.com/5314200/110073652-94041900-7d34-11eb-9b9b-7a9f4bf72901.PNG)
 
-19. The Security group changes take fairly immediately. Check that you are not longer able to access any random host such as google.com. However installing packages using pip should work without issue since our Security Group updates have whitelisted those IPs
+19. The Security group changes take fairly immediately. Check that you are not longer able to access any random host such as google.com. However installing packages using pip should work without issue since our Security Group updates have whitelisted those IPs![SecurityGroupAccessToPypi](https://user-images.githubusercontent.com/5314200/110074291-d0844480-7d35-11eb-8620-76aec159734f.png)
+
 20. Happy Sagemaker deployment!
 
