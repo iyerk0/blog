@@ -54,7 +54,7 @@ Now even if you had an IAM Role `ReaderRole` (whose unique ID is *not* in the ab
             "Action": [
                 "s3:GetObject",
                 "s3:ListBucket"
-=            ],
+            ],
             "Resource": "arn:aws:s3:::MyExampleBucket"
         }
     ]
@@ -63,7 +63,12 @@ Now even if you had an IAM Role `ReaderRole` (whose unique ID is *not* in the ab
 The user who assumes this role will *not* have read access and will get *AccessDenied* error.
 In order to get this working, you have to add the IAM role's uniqueId to the exception list of the bucket policy in the `aws:userId` key value.
 You can retrieve a role's unique id by the aws cli command `aws iam get-role --role-name <role-name>`
-Finally use the [IAM policy simulator](https://policysim.aws.amazon.com/) to test if the role has access to bucket.
+Typically you can assume the role and test for read access or create an ec2 instance with the given role as an instance profile for that instance.
+Then use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#start-ec2-console) to shell into the instance and try to do a get object from there: `aws s3 cp s3://example_bucket/example_object`
+
+If you still are unable to access the object troubleshoot using the [IAM policy simulator](https://policysim.aws.amazon.com/) to test if the role has access to bucket.
+
+If Policy SIM shows that the role has access to the bucket, but you are unable to still access objects from the s3 bucket, continue reading below :-) 
 
 1. Do you have a private S3 endpoint? If yes:
   2.  ensure the VPC endpoint policy allows access to tbe bucket
