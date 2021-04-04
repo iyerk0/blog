@@ -9,7 +9,62 @@ Having been through a few such episodes myself, I decided to add notes on how to
 #### Ensure the Role access exists for ability to read/write data
 One can specify the permissions to read/write data in either the IAM role policy and/or the S3 Bucket policy. Thus there are multiple ways to specify policy and often both bucket policy and IAM policy are specified. AWS uses a combination of both policies to determine if the role has ability to perform read/write on the bucket. Here a useful diagram: 
 
-![IAM Auth flow](https://dmhnzl5mp9mj6.cloudfront.net/security_awsblog/images/AuthZDiagram.png)
+![IAM Auth flow](https://user-images.githubusercontent.com/5314200/113523658-f59aeb80-955d-11eb-9075-35116624412c.png)
+The rules of thumb are:
+1. If there is no allow rule specified for action on a resource, then it is deny by default
+2. An explicit deny will always override an explicit allow
+
+Where keeping this in context becomes essential is the default deny policies in the bucket can block access to the bucket even if an IAM policy allows it.
+Here is an example of a deny all s3 bucket policy
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::MyExampleBucket",
+        "arn:aws:s3:::MyExampleBucket/*"
+      ],
+      "Condition": {
+        "StringNotLike": {
+          "aws:userId": [
+            "AROAEXAMPLEID:*",
+            "AIDAEXAMPLEID",
+            "111111111111"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+Now even if you had an IAM Role `ReaderRole` (whose unique ID is *not* in the above `aws:userId` list), which gave explicit read access to the bucket as shown below
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::111111111111:role/ROLENAME"
+            },
+            "Action": [
+                "s3:GetObject",
+                "s3:ListBucket"
+=            ],
+            "Resource": "arn:aws:s3:::MyExampleBucket"
+        }
+    ]
+ }
+```
+The user who assumes this role will *not* have read access and will get *AccessDenied* error.
+In order to get this working, you have to add the IAM role's uniqueId to the exception list of the bucket policy in the `aws:userId` key value.
+You can retrieve a role's unique id by the aws cli command `aws iam get-role --role-name <role-name>`
+Finally use the [IAM policy simulator](https://policysim.aws.amazon.com/) to test if the role has access to bucket.
+
 1. Do you have a private S3 endpoint? If yes:
   2.  ensure the VPC endpoint policy allows access to tbe bucket
   3.  ensure that the VPC endpoint and target bucket are in the same region. VPC endpoints do not allow cross region access
@@ -24,3 +79,5 @@ One can specify the permissions to read/write data in either the IAM role policy
 
 ### References
 * [Iam and bucket policy](https://aws.amazon.com/blogs/security/iam-policies-and-bucket-policies-and-acls-oh-my-controlling-access-to-s3-resources/)
+* [S3 bucket deny all policy](https://aws.amazon.com/blogs/security/how-to-create-a-policy-that-whitelists-access-to-sensitive-amazon-s3-buckets/)
+* [Role unique identifiers](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html#identifiers-unique-ids)
