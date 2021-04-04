@@ -9,7 +9,7 @@ Having been through a few such episodes myself, I decided to add notes on how to
 #### Ensure the Role access exists for ability to read/write data
 One can specify the permissions to read/write data in either the IAM role policy and/or the S3 Bucket policy. Thus there are multiple ways to specify policy and often both bucket policy and IAM policy are specified. AWS uses a combination of both policies to determine if the role has ability to perform read/write on the bucket. Here a useful diagram: 
 
-![](https://dmhnzl5mp9mj6.cloudfront.net/security_awsblog/images/AuthZDiagram.png)
+![IAM Auth flow](https://dmhnzl5mp9mj6.cloudfront.net/security_awsblog/images/AuthZDiagram.png)
 1. Do you have a private S3 endpoint? If yes:
   2.  ensure the VPC endpoint policy allows access to tbe bucket
   3.  ensure that the VPC endpoint and target bucket are in the same region. VPC endpoints do not allow cross region access
