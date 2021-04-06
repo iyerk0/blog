@@ -67,8 +67,22 @@ Typically you can assume the role and test for read access or create an ec2 inst
 Then use [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html#start-ec2-console) to shell into the instance and try to do a get object from there: `aws s3 cp s3://example_bucket/example_object`
 
 If you still are unable to access the object troubleshoot using the [IAM policy simulator](https://policysim.aws.amazon.com/) to test if the role has access to bucket.
-
+In the policy simulator 
 If Policy SIM shows that the role has access to the bucket, but you are unable to still access objects from the s3 bucket, continue reading below :-) 
+
+Ensure that policy sim shows *allowed* by tweaking both the bucket and IAM role policy
+
+Try downloading from the SSM shell again. 
+You may still get the error:
+`An error occurred (AccessDenied) when calling the GetObject operation: Access Denied`
+
+
+If you have setup a user with access key and secret. Ensure the creds are provisioned in your local desktop. Then edit the trust relationship of the role to allow this user to assume the role. 
+On your command line in your desktop, do: `aws sts assume-role --role-arn <role_arn> --role-session-name <some-role-session-name>`
+This will output a new access key and secret. Note them and use is in the next command
+Then do `AWS_ACCESS_KEY_ID=<access-key> AWS_SECRET_ACCESS_KEY=<secret-key> AWS_DEFAULT_REGION=<aws-region> AWS_ROLE_SESSION_NAME=<some-role-session-name> AWS_SESSION_TOKEN=<session-token> aws s3 cp s3://<bucket>/<object_path> .`
+You may get the error: `fatal error: An error occurred (403) when calling the HeadObject operation: Forbidden`
+Is the S3 bucket having encrypted with KMS key. If yes, then your role will need apporpriate decrypt privileges
 
 1. Do you have a private S3 endpoint? If yes:
   2.  ensure the VPC endpoint policy allows access to tbe bucket
