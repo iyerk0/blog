@@ -35,3 +35,7 @@ for role in iam.list_roles()['Roles']:
       roles_with_tags.append({'role': role['RoleName'], 'tag': tag})
   
 ```
+And finally behold the power of a for comprehension!
+```python
+[{'role': role['RoleName'], 'tag': tag} for role in iam.list_roles()['Roles'] for tag in iam.list_role_tags(RoleName=role['RoleName'])['Tags'] if tag['Key']=='costcenter' and tag['Value']=='hr']
+```
