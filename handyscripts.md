@@ -7,6 +7,9 @@ Even worse there is not CLI/API such as `aws iam list-roles` which filters by ta
 So here is a handy python script which filters for roles by tags. Enjoi
 ```python
 # Get all role names in the account
+import boto3
+iam = boto3.client('iam')
+
 rs = iam.list_roles()
 rns = [ r['RoleName'] for r in rs['Roles']
 
@@ -21,4 +24,14 @@ list(filter(lambda rtag: any(rt['Key']=='costcenter' and rt['Value']=='hr' for r
 
 >> [{'role': 'my-iam-role', 'tags': [{'Key': 'costcenter', 'Value': 'hr'}]}]
 
+```
+Simplified the above with a for loop
+```python
+roles_with_tags=[]
+
+for role in iam.list_roles()['Roles']:
+  for tag in iam.list_role_tags(RoleName=role['RoleName'])['Tags']:
+    if tag['Key']=='costcenter' and tag['Value']=='hr':
+      roles_with_tags.append({'role': role['RoleName'], 'tag': tag})
+  
 ```
