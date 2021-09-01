@@ -22,3 +22,20 @@ sc.install_pypi_package("boto3","<private_pypi_url>")
  In the next cell verify python package has been installed.
  
  `sc.list_packages()`
+ 
+ To add a jar file from an s3 location do the following:
+  ```
+  %%configure -f
+    {
+        "conf":{
+              "spark.pyspark.python": "python3",
+              "spark.pyspark.virtualenv.enabled": "true",
+              "spark.pyspark.virtualenv.type":"native",
+              "spark.pyspark.virtualenv.bin.path":"/usr/bin/virtualenv",
+              "spark.yarn.appMasterEnv.SPARK_HOME":"/usr/lib/spark/",
+              "spark.yarn.appMasterEnv.PYSPARK_PYTHON":"/usr/bin/python3",
+              "spark.pyspark.virtualenv.python_version":"3.7"
+    },
+        "jars": ["s3://<your_bucket>/<your_jar>"]
+}
+  ```
