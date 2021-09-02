@@ -25,5 +25,5 @@ where ip-xxx-xxx-xxx-xxx.us-east-1.compute-internal is the internal DNS name for
 
 
 ### References
-[licy client template](https://github.com/cloudera/livy/blob/master/conf/livy-client.conf.template)
-[increase session timeout in livy](https://aws.amazon.com/premiumsupport/knowledge-center/emr-session-not-found-http-request-error/)
+* [livy client template](https://github.com/cloudera/livy/blob/master/conf/livy-client.conf.template)
+* [increase session timeout in livy](https://aws.amazon.com/premiumsupport/knowledge-center/emr-session-not-found-http-request-error/)
