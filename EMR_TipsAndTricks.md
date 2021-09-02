@@ -12,7 +12,20 @@ https://stackoverflow.com/questions/57666983/increasing-spark-application-timeou
   * `vim ~/.sparkmagic/config.json`
   * update the value for variable `"livy_session_startup_timeout_seconds": 900`
 * In EMR master node: `vim /etc/livy/conf/livy.conf`
-* Update/set value: `livy.rsc.server.connect.timeout = 900s`
+* Update/set values: 
+```
+# Enabled to check whether timeout Livy sessions should be stopped.
+livy.server.session.timeout-check true
+
+# Time in milliseconds on how long Livy will wait before timing out an idle session.
+livy.server.session.timeout 1h
+
+livy.rsc.server.connect.timeout  900s
+
+# If Livy can't find the yarn app within this time, consider it lost.
+livy.server.yarn.app-lookup-timeout 300s
+
+```
 * restart livy : 
 ```
 sudo systemctl restart livy-server
