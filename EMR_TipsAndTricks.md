@@ -19,10 +19,11 @@ sudo systemctl restart livy-server
 sudo systemctl status livy-server
 ```
 
-#### Reference
-https://github.com/cloudera/livy/blob/master/conf/livy-client.conf.template 
-
-
 ### How to view livy logs from sparkmagic kernel
 curl  http://ip-xxx-xxx-xxx-xxx.us-east-1.compute-internal:8998/sessions/5/log?from=0 | jq
 where ip-xxx-xxx-xxx-xxx.us-east-1.compute-internal is the internal DNS name for the EMR master node
+
+
+### References
+[licy client template](https://github.com/cloudera/livy/blob/master/conf/livy-client.conf.template)
+[increase session timeout in livy](https://aws.amazon.com/premiumsupport/knowledge-center/emr-session-not-found-http-request-error/)
