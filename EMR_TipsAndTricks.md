@@ -35,7 +35,13 @@ sudo systemctl status livy-server
 ### How to view livy logs from sparkmagic kernel
 curl  http://ip-xxx-xxx-xxx-xxx.us-east-1.compute-internal:8998/sessions/5/log?from=0 | jq
 where ip-xxx-xxx-xxx-xxx.us-east-1.compute-internal is the internal DNS name for the EMR master node
-
+ ### How to view all the logs in yarn
+ Use session manager to login to master instance. Do: 
+ 
+ ```
+sudo su hadoop
+yarn logs -applicationId application_xxxxx_yyyy	
+ ```
 
 ### References
 * [livy client template](https://github.com/cloudera/livy/blob/master/conf/livy-client.conf.template)
