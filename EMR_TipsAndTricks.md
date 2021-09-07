@@ -91,3 +91,6 @@ logger.debug("This is a debug level log")
 * [increase session timeout in livy](https://aws.amazon.com/premiumsupport/knowledge-center/emr-session-not-found-http-request-error/)
 * [Spark context logging](https://stackoverflow.com/questions/25407550/how-do-i-log-from-my-python-spark-script)
 * [Python logging](https://stackoverflow.com/a/13733863/2643556)
+* Excellent general info on how pyspark interacts with the JVM based Spark context:
+  * https://stackoverflow.com/a/13733863/2643556
+  * https://dev.to/steadbytes/python-spark-and-the-jvm-an-overview-of-the-pyspark-runtime-architecture-21gg
