@@ -42,7 +42,52 @@ where ip-xxx-xxx-xxx-xxx.us-east-1.compute-internal is the internal DNS name for
 sudo su hadoop
 yarn logs -applicationId application_xxxxx_yyyy	
  ```
+### Logging via Sparkmagic kernel in Sagemaker
+There are two variations to be able to log via spark session. Option 1 is to log via the Spark Context in the JVM. Option 2 is to be log in native python when using pyspark
+#### Logging in pyspark via JVM
+```python
+log4jLogger = sc._jvm.org.apache.log4j
+logger = log4jLogger.LogManager.getLogger("org.myorg.myapp")
+logger.setLevel(log4jLogger.Level.DEBUG)
+logger.debug("This is a debug level log")
+```
+You should now be able to see logs in: EMR master node: `tail -100f /var/log/livy/livy-livy-server.out`
+
+#### Logging in pyspark via python
+```python
+import logging
+logger = logging.getLogger("org.myorg.myapp")
+logger.setLevel(logging.DEBUG)
+
+# reset the handlers otherwise re-running the kernel will keep appending the handlers
+logger.handlers=[]
+
+# create formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+file_handler = logging.FileHandler("/var/log/livy/myapp.log")
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+#############################################
+# There is an issue with adding streamhandler in pyspark via livy. See https://issues.apache.org/jira/browse/LIVY-774 . The following does not work
+# add formatter to ch
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(formatter)
+
+# add ch to logger
+logger.addHandler(ch)
+#############################################
+
+logger.debug("This is a debug level log")
+
+
+```
 
 ### References
 * [livy client template](https://github.com/cloudera/livy/blob/master/conf/livy-client.conf.template)
 * [increase session timeout in livy](https://aws.amazon.com/premiumsupport/knowledge-center/emr-session-not-found-http-request-error/)
+* [Spark context logging](https://stackoverflow.com/questions/25407550/how-do-i-log-from-my-python-spark-script)
+* [Python logging](https://stackoverflow.com/a/13733863/2643556)
