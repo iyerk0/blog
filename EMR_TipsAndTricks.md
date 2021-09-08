@@ -1,7 +1,7 @@
 ### How to view logs live in EMR cluster
 1. Setup Session Manager for EMR. Add the `AmazonSSMManagedInstanceCore` policy to the EMR Instance Role.
 2. Create EMR cluster using above role
-3. Use SSM session from your terminal to login to EMR master instance `winpty aws ssm start-session --target i-xxxxxxx`. Here, i-xxxxxxx is the EMR master node instance id. Use winpty if this is a Git BASH terminal
+3.Create a session manager session from your terminal to login to EMR master instance `winpty aws ssm start-session --target i-xxxxxxx`. Here, i-xxxxxxx is the EMR master node instance id. Use winpty if this is a Git BASH terminal
 4.Once you are in the EMR master instance, logs can be found as listed [here](https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-manage-view-web-log-files.html). 
 5. Trigger a pyspark session from Sagemaker
 6. Tail livy logs in the EMR master instance using the SSM session in your bash shell: tail -f /mnt/var/log/livy/livy-livy-server.out
@@ -85,6 +85,16 @@ logger.debug("This is a debug level log")
 
 
 ```
+### How to debug EMR logs not showing up in s3 logging bucket
+* Ensure you have not capitalized the name of the bucket in EMR log URI field when creating a cluster via an [API](https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-plan-debugging.html). Capitalization of s3 bucket name is invalid, but in certain cases EMR will accept a capitalized s3 name and then fail silently to post the logs to the s3 bucket
+##### Troubleshooting missing logs files in S3
+* Use Sessions manager to login into the EMR master instance
+* Check status of logpusher services: `systemctl --type=service | grep -i log`
+* View logpusher logs here: `vim /emr/logpusher/log/logpusher.log`
+* Here you might see messages which show access denied to post to your S3 bucket. 
+* Verify ec2 instance has appropriate access to write to the s3 logging bucket
+* Restart logpusher: `sudo systemctl restart logpusher`
+* 
 
 ### References
 * [livy client template](https://github.com/cloudera/livy/blob/master/conf/livy-client.conf.template)
