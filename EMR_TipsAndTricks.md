@@ -94,8 +94,21 @@ logger.debug("This is a debug level log")
 * Here you might see messages which show access denied to post to your S3 bucket. 
 * Verify ec2 instance has appropriate access to write to the s3 logging bucket
 * Restart logpusher: `sudo systemctl restart logpusher`
-* 
 
+#### How to add jars to pyspark via a private repository
+Add a ivysettings.xml to the master instance in EMR in `/home/hadoop/.ivy2/ivysettings.xml`
+```xml
+<ivysettings>
+ <settings defaultResolver="artifactory" />
+<resolvers>
+    <ibiblio name="artifactory" m2compatible="true" root="https://artifactory.<your-org>.com/artifactory/libs-release"/>
+</resolvers>
+</ivysettings>
+```
+Then invoke the spark-shell as:
+```
+spark-shell --packages joda-time:joda-time:2.10.1 --conf spark.jars.ivySettings=/home/hadoop/.ivy2/ivysettings.xml
+```
 ### References
 * [livy client template](https://github.com/cloudera/livy/blob/master/conf/livy-client.conf.template)
 * [increase session timeout in livy](https://aws.amazon.com/premiumsupport/knowledge-center/emr-session-not-found-http-request-error/)
