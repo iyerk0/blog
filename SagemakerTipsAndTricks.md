@@ -39,3 +39,6 @@ sc.install_pypi_package("boto3","<private_pypi_url>")
         "jars": ["s3://<your_bucket>/<your_jar>"]
 }
   ```
+  
+  #### References
+  * [Guidance to install python libs via sparkmagic kernel](https://aws.amazon.com/blogs/big-data/install-python-libraries-on-a-running-cluster-with-emr-notebooks/)
