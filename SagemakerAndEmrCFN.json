@@ -614,7 +614,7 @@
 					{
 						"Classification": "livy-conf",
 						"ConfigurationProperties": {
-							"livy.server.session.timeout": "2h"
+							"livy.server.session.timeout": "24h"
 						}
 					}
 				],
@@ -763,7 +763,8 @@
 					"Version": "2012-10-17"
 				},
 				"ManagedPolicyArns": [
-					"arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role"
+					"arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role",
+					"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 				],
 				"Path": "/"
 			},
