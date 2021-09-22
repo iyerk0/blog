@@ -635,8 +635,7 @@
 									},
 									"VolumesPerInstance": "1"
 								}
-							],
-							"EbsOptimized": "true"
+							]
 						},
 						"InstanceCount": {
 							"Fn::FindInMap": [
@@ -665,8 +664,7 @@
 									},
 									"VolumesPerInstance": "1"
 								}
-							],
-							"EbsOptimized": "true"
+							]
 						},
 						"InstanceCount": 1,
 						"InstanceType": {
