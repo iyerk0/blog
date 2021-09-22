@@ -1,1406 +1,1354 @@
 {
-  "Description" : "",
-  "Parameters" : {
-    "StepScriptFile" : {
-      "Type" : "String",
-      "Description" : "Script for EMR Step",
-      "Default" : "s3://aws-ml-blog/artifacts/Secure-Data-Analytics-with-SageMaker-Notebook-Instance-and-Kerberized-EMR-Cluster/configurekdc.sh"
-    },
-    "BootStrapScriptFile" : {
-      "Type" : "String",
-      "Description" : "Script for EMR bootstrap actions",
-      "Default" : "s3://aws-ml-blog/artifacts/Secure-Data-Analytics-with-SageMaker-Notebook-Instance-and-Kerberized-EMR-Cluster/createlinuxusers.sh"
-    }
-  },
-  "Metadata" : {
-    "AWS::CloudFormation::Interface" : {
-      "ParameterGroups" : [
-        {
-          "Label" : {
-            "default" : "EMR Parameters"
-          },
-          "Parameters" : [
-            "BootStrapScriptFile",
-            "StepScriptFile"
-          ]
-        }
-      ]
-    }
-  },
-  "Mappings" : {
-    "ClusterConfigurations" : {
-      "emr" : {
-        "masterInstanceType" : "m5.xlarge",
-        "coreInstanceType" : "m5.xlarge",
-        "masterInstanceCount" : 1,
-        "coreInstanceCount" : 2,
-        "emrReleaseVersion" : "emr-5.30.1"
-      },
-      "sagemaker" : {
-        "sageMakerConfigName" : "SageEMRConfig",
-        "sageMakerInstanceName" : "SageEMR",
-        "sageMakerInstanceType" : "ml.t2.medium"
-      }
-    },
-    "VpcConfigurations" : {
-      "cidr" : {
-        "Vpc" : "10.0.0.0/16",
-        "PublicSubnet1" : "10.0.10.0/24",
-        "PrivateSubnet1" : "10.0.20.0/24"
-      }
-    }
-  },
-  "Resources" : {
-    "VPC" : {
-      "Type" : "AWS::EC2::VPC",
-      "Properties" : {
-        "CidrBlock" : {
-          "Fn::FindInMap": ["VpcConfigurations","cidr","Vpc"]
-        },
-        "EnableDnsSupport" : true,
-        "EnableDnsHostnames" : true,
-        "Tags" : [
-          {
-            "Key" : "Name",
-            "Value" : {
-              "Fn::Sub" : "${AWS::StackName}-VPC"
-            }
-          }
-        ]
-      }
-    },
-    "InternetGateway" : {
-      "Type" : "AWS::EC2::InternetGateway",
-      "Properties" : {
-        "Tags" : [
-          {
-            "Key" : "Name",
-            "Value" : {
-              "Fn::Sub" : "${AWS::StackName}-IGW"
-            }
-          }
-        ]
-      }
-    },
-    "InternetGatewayAttachment" : {
-      "Type" : "AWS::EC2::VPCGatewayAttachment",
-      "Properties" : {
-        "InternetGatewayId" : {
-          "Ref" : "InternetGateway"
-        },
-        "VpcId" : {
-          "Ref" : "VPC"
-        }
-      }
-    },
-    "PublicSubnet1" : {
-      "Type" : "AWS::EC2::Subnet",
-      "Properties" : {
-        "VpcId" : {
-          "Ref" : "VPC"
-        },
-        "AvailabilityZone" : {
-          "Fn::Select" : [
-            0,
-            {
-              "Fn::GetAZs" : ""
-            }
-          ]
-        },
-        "CidrBlock" : {
-          "Fn::FindInMap": ["VpcConfigurations","cidr","PublicSubnet1"]
-        },
-        "MapPublicIpOnLaunch" : true,
-        "Tags" : [
-          {
-            "Key" : "Name",
-            "Value" : {
-              "Fn::Sub" : "${AWS::StackName} Public Subnet (AZ1)"
-            }
-          }
-        ]
-      }
-    },
-    "PrivateSubnet1" : {
-      "Type" : "AWS::EC2::Subnet",
-      "Properties" : {
-        "VpcId" : {
-          "Ref" : "VPC"
-        },
-        "AvailabilityZone" : {
-          "Fn::Select" : [
-            0,
-            {
-              "Fn::GetAZs" : ""
-            }
-          ]
-        },
-        "CidrBlock" : {
-          "Fn::FindInMap": ["VpcConfigurations","cidr","PrivateSubnet1"]
-        },
-        "MapPublicIpOnLaunch" : false,
-        "Tags" : [
-          {
-            "Key" : "Name",
-            "Value" : {
-              "Fn::Sub" : "${AWS::StackName} Private Subnet (AZ1)"
-            }
-          }
-        ]
-      }
-    },
-    "NatGateway1EIP" : {
-      "Type" : "AWS::EC2::EIP",
-      "DependsOn" : "InternetGatewayAttachment",
-      "Properties" : {
-        "Domain" : "vpc"
-      }
-    },
-    "NatGateway1" : {
-      "Type" : "AWS::EC2::NatGateway",
-      "Properties" : {
-        "AllocationId" : {
-          "Fn::GetAtt" : [
-            "NatGateway1EIP",
-            "AllocationId"
-          ]
-        },
-        "SubnetId" : {
-          "Ref" : "PublicSubnet1"
-        }
-      }
-    },
-    "PublicRouteTable" : {
-      "Type" : "AWS::EC2::RouteTable",
-      "Properties" : {
-        "VpcId" : {
-          "Ref" : "VPC"
-        },
-        "Tags" : [
-          {
-            "Key" : "Name",
-            "Value" : {
-              "Fn::Sub" : "${AWS::StackName} Public Routes"
-            }
-          }
-        ]
-      }
-    },
-    "DefaultPublicRoute" : {
-      "Type" : "AWS::EC2::Route",
-      "DependsOn" : "InternetGatewayAttachment",
-      "Properties" : {
-        "RouteTableId" : {
-          "Ref" : "PublicRouteTable"
-        },
-        "DestinationCidrBlock" : "0.0.0.0/0",
-        "GatewayId" : {
-          "Ref" : "InternetGateway"
-        }
-      }
-    },
-    "PublicSubnet1RouteTableAssociation" : {
-      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-      "Properties" : {
-        "RouteTableId" : {
-          "Ref" : "PublicRouteTable"
-        },
-        "SubnetId" : {
-          "Ref" : "PublicSubnet1"
-        }
-      }
-    },
-    "PrivateRouteTable1" : {
-      "Type" : "AWS::EC2::RouteTable",
-      "Properties" : {
-        "VpcId" : {
-          "Ref" : "VPC"
-        },
-        "Tags" : [
-          {
-            "Key" : "Name",
-            "Value" : {
-              "Fn::Sub" : "${AWS::StackName} Private Routes (AZ1)"
-            }
-          }
-        ]
-      }
-    },
-    "PrivateSubnet1RouteTableAssociation" : {
-      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
-      "Properties" : {
-        "RouteTableId" : {
-          "Ref" : "PrivateRouteTable1"
-        },
-        "SubnetId" : {
-          "Ref" : "PrivateSubnet1"
-        }
-      }
-    },
-    "PrivateSubnet1InternetRoute" : {
-      "Type" : "AWS::EC2::Route",
-      "Properties" : {
-        "RouteTableId" : {
-          "Ref" : "PrivateRouteTable1"
-        },
-        "DestinationCidrBlock" : "0.0.0.0/0",
-        "NatGatewayId" : {
-          "Ref" : "NatGateway1"
-        }
-      }
-    },
-    "NoIngressSecurityGroup" : {
-      "Type" : "AWS::EC2::SecurityGroup",
-      "Properties" : {
-        "GroupName" : "no-ingress-sg",
-        "GroupDescription" : "Security group with no ingress rule",
-        "VpcId" : {
-          "Ref" : "VPC"
-        }
-      }
-    },
-    "EC2SecurityGroup" : {
-      "Type" : "AWS::EC2::SecurityGroup",
-      "Properties" : {
-        "GroupDescription" : "Enable access to the EC2 host",
-        "VpcId" : {
-          "Ref" : "VPC"
-        }
-      }
-    },
-    "S3Endpoint" : {
-      "Type" : "AWS::EC2::VPCEndpoint",
-      "Properties" : {
-        "ServiceName" : {
-          "Fn::Sub" : "com.amazonaws.${AWS::Region}.s3"
-        },
-        "VpcEndpointType" : "Gateway",
-        "PolicyDocument" : {
-          "Version" : "2012-10-17",
-          "Statement" : [
-            {
-              "Effect" : "Allow",
-              "Principal" : "*",
-              "Action" : [
-                "*"
-              ],
-              "Resource" : [
-                "*"
-              ]
-            }
-          ]
-        },
-        "VpcId" : {
-          "Ref" : "VPC"
-        },
-        "RouteTableIds" : [
-          {
-            "Ref" : "PrivateRouteTable1"
-          }
-        ]
-      }
-    },
-    "S3Bucket" : {
-      "Type" : "AWS::S3::Bucket"
-    },
-    "masterSecurityGroup" : {
-      "Type" : "AWS::EC2::SecurityGroup",
-      "Properties" : {
-        "GroupDescription" : "EMR Master SG",
-        "VpcId" : {
-          "Ref" : "VPC"
-        }
-      }
-    },
-    "slaveSecurityGroup" : {
-      "Type" : "AWS::EC2::SecurityGroup",
-      "Properties" : {
-        "GroupDescription" : "EMR Slave SG",
-        "VpcId" : {
-          "Ref" : "VPC"
-        }
-      }
-    },
-    "emrServiceSecurityGroup" : {
-      "Type" : "AWS::EC2::SecurityGroup",
-      "Properties" : {
-        "GroupDescription" : "EMR Service Access SG",
-        "VpcId" : {
-          "Ref" : "VPC"
-        }
-      }
-    },
-    "emrMasterIngressSelfICMP" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "icmp",
-        "FromPort" : -1,
-        "ToPort" : -1,
-        "SourceSecurityGroupId" : {
-          "Ref" : "masterSecurityGroup"
-        }
-      }
-    },
-    "emrMasterIngressSlaveICMP" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "icmp",
-        "FromPort" : -1,
-        "ToPort" : -1,
-        "SourceSecurityGroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        }
-      }
-    },
-    "emrMasterIngressSelfAllTcp" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 0,
-        "ToPort" : 65535,
-        "SourceSecurityGroupId" : {
-          "Ref" : "masterSecurityGroup"
-        }
-      }
-    },
-    "emrMasterIngressSlaveAllTcp" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 0,
-        "ToPort" : 65535,
-        "SourceSecurityGroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        }
-      }
-    },
-    "emrMasterIngressSelfAllUdp" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "udp",
-        "FromPort" : 0,
-        "ToPort" : 65535,
-        "SourceSecurityGroupId" : {
-          "Ref" : "masterSecurityGroup"
-        }
-      }
-    },
-    "emrMasterIngressSlaveAllUdp" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "udp",
-        "FromPort" : 0,
-        "ToPort" : 65535,
-        "SourceSecurityGroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        }
-      }
-    },
-    "emrMasterIngressLivySG" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 8998,
-        "ToPort" : 8998,
-        "SourceSecurityGroupId" : {
-          "Ref" : "SageMakerInstanceSecurityGroup"
-        }
-      }
-    },
-    "emrMasterIngressServiceSg" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 8443,
-        "ToPort" : 8443,
-        "SourceSecurityGroupId" : {
-          "Ref" : "emrServiceSecurityGroup"
-        }
-      }
-    },
-    "emrServiceIngressMasterSg" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "emrServiceSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 9443,
-        "ToPort" : 9443,
-        "SourceSecurityGroupId" : {
-          "Ref" : "masterSecurityGroup"
-        }
-      }
-    },
-    "emrServiceEgressMaster" : {
-      "Type" : "AWS::EC2::SecurityGroupEgress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "emrServiceSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 8443,
-        "ToPort" : 8443,
-        "DestinationSecurityGroupId" : {
-          "Ref" : "masterSecurityGroup"
-        }
-      }
-    },
-    "emrServiceEgressSlave" : {
-      "Type" : "AWS::EC2::SecurityGroupEgress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "emrServiceSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 8443,
-        "ToPort" : 8443,
-        "DestinationSecurityGroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        }
-      }
-    },
-    "emrSlaveIngressSelfICMP" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        },
-        "IpProtocol" : "icmp",
-        "FromPort" : -1,
-        "ToPort" : -1,
-        "SourceSecurityGroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        }
-      }
-    },
-    "emrSlaveIngressMasterICMP" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        },
-        "IpProtocol" : "icmp",
-        "FromPort" : -1,
-        "ToPort" : -1,
-        "SourceSecurityGroupId" : {
-          "Ref" : "masterSecurityGroup"
-        }
-      }
-    },
-    "emrSlaveIngressSelfAllTcp" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 0,
-        "ToPort" : 65535,
-        "SourceSecurityGroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        }
-      }
-    },
-    "emrSlaveIngressMasterAllTcp" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 0,
-        "ToPort" : 65535,
-        "SourceSecurityGroupId" : {
-          "Ref" : "masterSecurityGroup"
-        }
-      }
-    },
-    "emrSlaveIngressSelfAllUdp" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        },
-        "IpProtocol" : "udp",
-        "FromPort" : 0,
-        "ToPort" : 65535,
-        "SourceSecurityGroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        }
-      }
-    },
-    "emrSlaveIngressMasterAllUdp" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        },
-        "IpProtocol" : "udp",
-        "FromPort" : 0,
-        "ToPort" : 65535,
-        "SourceSecurityGroupId" : {
-          "Ref" : "masterSecurityGroup"
-        }
-      }
-    },
-    "emrSlaveIngressServiceSg" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "slaveSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 8443,
-        "ToPort" : 8443,
-        "SourceSecurityGroupId" : {
-          "Ref" : "emrServiceSecurityGroup"
-        }
-      }
-    },
-    "EMRCluster" : {
-      "Type" : "AWS::EMR::Cluster",
-      "Properties" : {
-        "Applications" : [
-          {
-            "Name" : "Spark"
-          },
-          {
-            "Name" : "Hive"
-          },
-          {
-            "Name" : "Livy"
-          }
-        ],
-        "BootstrapActions" : [
-          {
-            "Name" : "Dummy bootstrap action",
-            "ScriptBootstrapAction" : {
-              "Args" : [
-                "dummy",
-                "parameter"
-              ],
-              "Path" : {
-                "Ref" : "BootStrapScriptFile"
-              }
-            }
-          }
-        ],
-        "AutoScalingRole" : "EMR_AutoScaling_DefaultRole",
-        "Configurations" : [
-          {
-            "Classification" : "livy-conf",
-            "ConfigurationProperties" : {
-              "livy.server.session.timeout" : "2h"
-            }
-          }
-        ],
-        "EbsRootVolumeSize" : 100,
-        "Instances" : {
-          "CoreInstanceGroup" : {
-            "EbsConfiguration" : {
-              "EbsBlockDeviceConfigs" : [
-                {
-                  "VolumeSpecification" : {
-                    "SizeInGB" : "320",
-                    "VolumeType" : "gp2"
-                  },
-                  "VolumesPerInstance" : "1"
-                }
-              ],
-              "EbsOptimized" : "true"
-            },
-            "InstanceCount" : {
-              "Fn::FindInMap" : [
-                "ClusterConfigurations",
-                "emr",
-                "coreInstanceCount"
-              ]
-            },
-            "InstanceType" : {
-              "Fn::FindInMap" : [
-                "ClusterConfigurations",
-                "emr",
-                "coreInstanceType"
-              ]
-            },
-            "Market" : "ON_DEMAND",
-            "Name" : "coreNode"
-          },
-          "MasterInstanceGroup" : {
-            "EbsConfiguration" : {
-              "EbsBlockDeviceConfigs" : [
-                {
-                  "VolumeSpecification" : {
-                    "SizeInGB" : "320",
-                    "VolumeType" : "gp2"
-                  },
-                  "VolumesPerInstance" : "1"
-                }
-              ],
-              "EbsOptimized" : "true"
-            },
-            "InstanceCount" : 1,
-            "InstanceType" : {
-              "Fn::FindInMap" : [
-                "ClusterConfigurations",
-                "emr",
-                "masterInstanceType"
-              ]
-            },
-            "Market" : "ON_DEMAND",
-            "Name" : "masterNode"
-          },
-          "Ec2SubnetId" : {
-            "Ref" : "PrivateSubnet1"
-          },
-          "EmrManagedMasterSecurityGroup" : {
-            "Ref" : "masterSecurityGroup"
-          },
-          "EmrManagedSlaveSecurityGroup" : {
-            "Ref" : "slaveSecurityGroup"
-          },
-          "ServiceAccessSecurityGroup" : {
-            "Ref" : "emrServiceSecurityGroup"
-          },
-          "TerminationProtected" : false
-        },
-        "JobFlowRole" : {
-          "Ref" : "EMRClusterinstanceProfile"
-        },
-        "LogUri" : {
-          "Fn::Sub" : "s3://${S3Bucket}/elasticmapreduce/logs"
-        },
-        "Name" : {
-          "Fn::Sub" : "EMR-Cluster-${AWS::StackName}"
-        },
-        "ReleaseLabel" : {
-          "Fn::FindInMap" : [
-            "ClusterConfigurations",
-            "emr",
-            "emrReleaseVersion"
-          ]
-        },
-        "ServiceRole" : {
-          "Ref" : "EMRClusterServiceRole"
-        },
-        "VisibleToAllUsers" : true,
-        "KerberosAttributes" : {
-          "CrossRealmTrustPrincipalPassword" : "CfnIntegrationTest-1",
-          "KdcAdminPassword" : "CfnIntegrationTest-1",
-          "Realm" : "EC2.INTERNAL"
-        },
-        "SecurityConfiguration" : {
-          "Ref" : "securityConfiguration"
-        },
-        "Steps" : [
-          {
-            "ActionOnFailure" : "CONTINUE",
-            "HadoopJarStep" : {
-              "Args" : [
-                {
-                  "Ref" : "StepScriptFile"
-                }
-              ],
-              "Jar" : "s3://elasticmapreduce/libs/script-runner/script-runner.jar",
-              "MainClass" : ""
-            },
-            "Name" : "run any bash or java job in spark"
-          }
-        ]
-      }
-    },
-    "EMRClusterServiceRole" : {
-      "Properties" : {
-        "AssumeRolePolicyDocument" : {
-          "Statement" : [
-            {
-              "Action" : [
-                "sts:AssumeRole"
-              ],
-              "Effect" : "Allow",
-              "Principal" : {
-                "Service" : [
-                  "elasticmapreduce.amazonaws.com"
-                ]
-              }
-            }
-          ],
-          "Version" : "2012-10-17"
-        },
-        "ManagedPolicyArns" : [
-          "arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole"
-        ],
-        "Path" : "/"
-      },
-      "Type" : "AWS::IAM::Role"
-    },
-    "EMRClusterinstanceProfile" : {
-      "Properties" : {
-        "Path" : "/",
-        "Roles" : [
-          {
-            "Ref" : "EMRClusterinstanceProfileRole"
-          }
-        ]
-      },
-      "Type" : "AWS::IAM::InstanceProfile"
-    },
-    "EMRClusterinstanceProfileRole" : {
-      "Properties" : {
-        "AssumeRolePolicyDocument" : {
-          "Statement" : [
-            {
-              "Action" : [
-                "sts:AssumeRole"
-              ],
-              "Effect" : "Allow",
-              "Principal" : {
-                "Service" : [
-                  "ec2.amazonaws.com"
-                ]
-              }
-            }
-          ],
-          "Version" : "2012-10-17"
-        },
-        "ManagedPolicyArns" : [
-          "arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role"
-        ],
-        "Path" : "/"
-      },
-      "Type" : "AWS::IAM::Role"
-    },
-    "CleanUpBucketonDelete" : {
-      "DependsOn" : "CleanUpBucketonDeleteLambda",
-      "Type" : "Custom::emptybucket",
-      "Properties" : {
-        "ServiceToken" : {
-          "Fn::GetAtt" : [
-            "CleanUpBucketonDeleteLambda",
-            "Arn"
-          ]
-        },
-        "inputBucketName" : {
-          "Ref" : "S3Bucket"
-        }
-      }
-    },
-    "CleanUpBucketonDeleteLambda" : {
-      "DependsOn" : [
-        "S3Bucket",
-        "CleanUpBucketonDeleteLambdaRole"
-      ],
-      "Type" : "AWS::Lambda::Function",
-      "Properties" : {
-        "Description" : "Empty bucket on delete",
-        "Handler" : "index.lambda_handler",
-        "Role" : {
-          "Fn::GetAtt" : [
-            "CleanUpBucketonDeleteLambdaRole",
-            "Arn"
-          ]
-        },
-        "Runtime" : "python3.7",
-        "Timeout" : 60,
-        "Code" : {
-          "ZipFile" : {
-            "Fn::Join" : [
-              "\n",
-              [
-                "import json",
-                "import boto3",
-                "import urllib3",
-                "",
-                "def empty_bucket(bucket_name):",
-                "    print(\"Attempting to empty the bucket {0}\".format(bucket_name))",
-                "    s3_client = boto3.client('s3')",
-                "    s3 = boto3.resource('s3')",
-                "",
-                "    try:",
-                "        bucket = s3.Bucket(bucket_name).load()",
-                "    except ClientError:",
-                "        print(\"Bucket {0} does not exist\".format(bucket_name))",
-                "        return",
-                "    # Confirm if versioning is enabled",
-                "    version_status = s3_client.get_bucket_versioning(Bucket=bucket_name)",
-                "    status = version_status.get('Status','')",
-                "    if status == 'Enabled':",
-                "        version_status = s3_client.put_bucket_versioning(Bucket=bucket_name,",
-                "                                                   VersioningConfiguration={'Status': 'Suspended'})",
-                "    version_paginator = s3_client.get_paginator('list_object_versions')",
-                "    version_iterator = version_paginator.paginate(",
-                "        Bucket=bucket_name",
-                "    )",
-                "",
-                "    for page in version_iterator:",
-                "        print(page)",
-                "        if 'DeleteMarkers' in page:",
-                "            delete_markers = page['DeleteMarkers']",
-                "            if delete_markers is not None:",
-                "                for delete_marker in delete_markers:",
-                "                    key = delete_marker['Key']",
-                "                    versionId = delete_marker['VersionId']",
-                "                    s3_client.delete_object(Bucket=bucket_name, Key=key, VersionId=versionId)",
-                "        if 'Versions' in page and page['Versions'] is not None:",
-                "            versions = page['Versions']",
-                "            for version in versions:",
-                "                print(version)",
-                "                key = version['Key']",
-                "                versionId = version['VersionId']",
-                "                s3_client.delete_object(Bucket=bucket_name, Key=key, VersionId=versionId)",
-                "    object_paginator = s3_client.get_paginator('list_objects_v2')",
-                "    object_iterator = object_paginator.paginate(",
-                "        Bucket=bucket_name",
-                "    )",
-                "    for page in object_iterator:",
-                "        if 'Contents' in page:",
-                "            for content in page['Contents']:",
-                "                key = content['Key']",
-                "                s3_client.delete_object(Bucket=bucket_name, Key=content['Key'])",
-                "    print(\"Successfully emptied the bucket {0}\".format(bucket_name))",
-                "",
-                "",
-                "",
-                "def lambda_handler(event, context):",
-                "    try:",
-                "        bucket = event['ResourceProperties']['inputBucketName']",
-                "        if event['RequestType'] == 'Delete':",
-                "            empty_bucket(bucket)",
-                "        sendResponse(event, context, \"SUCCESS\")",
-                "    except Exception as e:",
-                "        print(e)",
-                "        sendResponse(event, context, \"FAILED\")",
-                "",
-                "def sendResponse(event, context, status):",
-                "    http = urllib3.PoolManager()",
-                "    response_body = {'Status': status,",
-                "                     'Reason': 'Log stream name: ' + context.log_stream_name,",
-                "                     'PhysicalResourceId': context.log_stream_name,",
-                "                     'StackId': event['StackId'],",
-                "                     'RequestId': event['RequestId'],",
-                "                     'LogicalResourceId': event['LogicalResourceId'],",
-                "                     'Data': json.loads(\"{}\")}",
-                "    http.request('PUT', event['ResponseURL'], body=json.dumps(response_body))"
-              ]
-            ]
-          }
-        }
-      }
-    },
-    "CleanUpBucketonDeleteLambdaRole" : {
-      "Type" : "AWS::IAM::Role",
-      "Properties" : {
-        "AssumeRolePolicyDocument" : {
-          "Version" : "2012-10-17",
-          "Statement" : [
-            {
-              "Effect" : "Allow",
-              "Principal" : {
-                "Service" : [
-                  "lambda.amazonaws.com"
-                ]
-              },
-              "Action" : [
-                "sts:AssumeRole"
-              ]
-            }
-          ]
-        },
-        "Path" : "/",
-        "Policies" : [
-          {
-            "PolicyName" : {
-              "Fn::Sub" : "CleanUpBucketonDeleteLambdaPolicy-${AWS::StackName}"
-            },
-            "PolicyDocument" : {
-              "Version" : "2012-10-17",
-              "Statement" : [
-                {
-                  "Effect" : "Allow",
-                  "Action" : [
-                    "s3:*"
-                  ],
-                  "Resource" : [
-                    {
-                      "Fn::GetAtt" : [
-                        "S3Bucket",
-                        "Arn"
-                      ]
-                    },
-                    {
-                      "Fn::Join" : [
-                        "",
-                        [
-                          {
-                            "Fn::GetAtt" : [
-                              "S3Bucket",
-                              "Arn"
-                            ]
-                          },
-                          "/"
-                        ]
-                      ]
-                    },
-                    {
-                      "Fn::Join" : [
-                        "",
-                        [
-                          {
-                            "Fn::GetAtt" : [
-                              "S3Bucket",
-                              "Arn"
-                            ]
-                          },
-                          "/*"
-                        ]
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "Effect" : "Deny",
-                  "Action" : [
-                    "s3:DeleteBucket"
-                  ],
-                  "Resource" : "*"
-                },
-                {
-                  "Effect" : "Allow",
-                  "Action" : [
-                    "logs:*"
-                  ],
-                  "Resource" : "*"
-                }
-              ]
-            }
-          }
-        ]
-      }
-    },
-    "securityConfiguration" : {
-      "Type" : "AWS::EMR::SecurityConfiguration",
-      "Properties" : {
-        "SecurityConfiguration" : {
-          "AuthenticationConfiguration" : {
-            "KerberosConfiguration" : {
-              "Provider" : "ClusterDedicatedKdc",
-              "ClusterDedicatedKdcConfiguration" : {
-                "TicketLifetimeInHours" : 24
-              }
-            }
-          },
-          "AuthorizationConfiguration" : {
-            "EmrFsConfiguration" : {
-              "RoleMappings" : [
-                {
-                  "Role" : {
-                    "Fn::Sub" : "arn:aws:iam::${AWS::AccountId}:role/${AWS::StackName}-allowEMRFSAccessForUser2"
-                  },
-                  "IdentifierType" : "User",
-                  "Identifiers" : [
-                    "user2"
-                  ]
-                },
-                {
-                  "Role" : {
-                    "Fn::Sub" : "arn:aws:iam::${AWS::AccountId}:role/${AWS::StackName}-allowEMRFSAccessForUser1"
-                  },
-                  "IdentifierType" : "User",
-                  "Identifiers" : [
-                    "user1"
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      }
-    },
-    "SageMakerInstanceSecurityGroup" : {
-      "Type" : "AWS::EC2::SecurityGroup",
-      "Properties" : {
-        "GroupName" : "SMSG",
-        "GroupDescription" : "Security group with no ingress rule",
-        "VpcId" : {
-          "Ref" : "VPC"
-        }
-      }
-    },
-    "SageMakerExecutionRole" : {
-      "Type" : "AWS::IAM::Role",
-      "Properties" : {
-        "AssumeRolePolicyDocument" : {
-          "Version" : "2012-10-17",
-          "Statement" : [
-            {
-              "Effect" : "Allow",
-              "Principal" : {
-                "Service" : [
-                  "sagemaker.amazonaws.com"
-                ]
-              },
-              "Action" : [
-                "sts:AssumeRole"
-              ]
-            }
-          ]
-        },
-        "Path" : "/",
-        "Policies" : [
-          {
-            "PolicyName" : {
-              "Fn::Sub" : "${AWS::StackName}-sageemr"
-            },
-            "PolicyDocument" : {
-              "Version" : "2012-10-17",
-              "Statement" : [
-                {
-                  "Effect" : "Allow",
-                  "Resource" : "*",
-                  "Action" : [
-                    "elasticmapreduce:ListInstances"
-                  ]
-                }
-              ]
-            }
-          }
-        ],
-        "ManagedPolicyArns" : [
-          "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess",
-          "arn:aws:iam::aws:policy/AWSGlueConsoleSageMakerNotebookFullAccess",
-          "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
-        ]
-      }
-    },
-    "SageMakerNotebookInstance" : {
-      "DependsOn" : "SageMakerLifeCycleConfig",
-      "Type" : "AWS::SageMaker::NotebookInstance",
-      "Properties" : {
-        "InstanceType" : {
-          "Fn::FindInMap" : [
-            "ClusterConfigurations",
-            "sagemaker",
-            "sageMakerInstanceType"
-          ]
-        },
-        "RoleArn" : {
-          "Fn::GetAtt" : [
-            "SageMakerExecutionRole",
-            "Arn"
-          ]
-        },
-        "SubnetId" : {
-          "Ref" : "PrivateSubnet1"
-        },
-        "NotebookInstanceName" : {
-          "Fn::FindInMap" : [
-            "ClusterConfigurations",
-            "sagemaker",
-            "sageMakerInstanceName"
-          ]
-        },
-        "SecurityGroupIds" : [
-          {
-            "Ref" : "SageMakerInstanceSecurityGroup"
-          }
-        ],
-        "LifecycleConfigName" : {
-          "Fn::FindInMap" : [
-            "ClusterConfigurations",
-            "sagemaker",
-            "sageMakerConfigName"
-          ]
-        }
-      }
-    },
-    "SageMakerLifeCycleConfig" : {
-      "Type" : "AWS::SageMaker::NotebookInstanceLifecycleConfig",
-      "Properties" : {
-        "OnCreate" : [
-          {
-            "Content" : {
-              "Fn::Base64" : {
-                "Fn::Sub" : [
-                  "set -e\n# Identify EMR cluster, set up Livy and configure with cluster ID address\n\necho ${EMRCluster} > /tmp/emrclusterid\necho ${EMRDNSName} > /tmp/emrmasterdnsname\n\ncat << EOF >> /tmp/krb5.conf\n[libdefaults]\n    default_realm = EC2.INTERNAL\n    dns_lookup_realm = false\n    dns_lookup_kdc = false\n    rdns = true\n    ticket_lifetime = 24h\n    forwardable = true\n    udp_preference_limit = 1000000\n    default_tkt_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 des3-cbc-sha1\n    default_tgs_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 des3-cbc-sha1\n    permitted_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 des3-cbc-sha1\n\n[realms]\n\n    EC2.INTERNAL = {\n        kdc = localhost:88\n        admin_server = localhost:749\n        default_domain = ec2.internal\n    }\n\n[domain_realm]\n    .ec2.internal = EC2.INTERNAL\n     ec2.internal = EC2.INTERNAL\n\n[logging]\n    kdc = FILE:/var/log/kerberos/krb5kdc.log\n    admin_server = FILE:/var/log/kerberos/kadmin.log\n    default = FILE:/var/log/kerberos/krb5lib.log\nEOF\n\ncp /tmp/krb5.conf /etc/krb5.conf\n\nwget -O /home/ec2-user/SageMaker/.sparkmagic/config.json https://raw.githubusercontent.com/jupyter-incubator/sparkmagic/master/sparkmagic/example_config.json \n\nwget -O /home/ec2-user/SageMaker/Covid19-Pandas-Spark.ipynb https://aws-ml-blog.s3.amazonaws.com/artifacts/Secure-Data-Analytics-with-SageMaker-Notebook-Instance-and-Kerberized-EMR-Cluster/Covid19-Pandas-Spark.ipynb\n\nsed -i -e \"s/localhost/${EMRDNSName}/g\" /home/ec2-user/SageMaker/.sparkmagic/config.json\nsed -i -e 's/None\"$/Kerberos\"/g' /home/ec2-user/SageMaker/.sparkmagic/config.json\nsed -i -e \"s/localhost/${EMRDNSName}/g\" /etc/krb5.conf\nsed -i -e \"s/mybucket/${S3Bucket}/g\" /home/ec2-user/SageMaker/Covid19-Pandas-Spark.ipynb\n",
-                  {
-                    "EMRDNSName" : {
-                      "Fn::GetAtt" : [
-                        "EMRCluster",
-                        "MasterPublicDNS"
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ],
-        "OnStart" : [
-          {
-            "Content" : {
-              "Fn::Base64" : {
-                "Fn::Sub" : [
-                  "set -e\nrm -rf /home/ec2-user/SageMaker/.sparkmagic/logs/*\n\ncat << EOF > /tmp/krb5.conf\n[libdefaults]\n    default_realm = EC2.INTERNAL\n    dns_lookup_realm = false\n    dns_lookup_kdc = false\n    rdns = true\n    ticket_lifetime = 24h\n    forwardable = true\n    udp_preference_limit = 1000000\n    default_tkt_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 des3-cbc-sha1\n    default_tgs_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 des3-cbc-sha1\n    permitted_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 des3-cbc-sha1\n\n[realms]\n\n    EC2.INTERNAL = {\n        kdc = localhost:88\n        admin_server = localhost:749\n        default_domain = ec2.internal\n    }\n\n[domain_realm]\n    .ec2.internal = EC2.INTERNAL\n     ec2.internal = EC2.INTERNAL\n\n[logging]\n    kdc = FILE:/var/log/kerberos/krb5kdc.log\n    admin_server = FILE:/var/log/kerberos/kadmin.log\n    default = FILE:/var/log/kerberos/krb5lib.log\nEOF\n\ncp /tmp/krb5.conf /etc/krb5.conf\nsed -i -e \"s/localhost/${EMRDNSName}/g\" /etc/krb5.conf",
-                  {
-                    "EMRDNSName" : {
-                      "Fn::GetAtt" : [
-                        "EMRCluster",
-                        "MasterPublicDNS"
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ],
-        "NotebookInstanceLifecycleConfigName" : {
-          "Fn::FindInMap" : [
-            "ClusterConfigurations",
-            "sagemaker",
-            "sageMakerConfigName"
-          ]
-        }
-      }
-    },
-    "emrMasterIngressKDCSG" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 88,
-        "ToPort" : 88,
-        "SourceSecurityGroupId" : {
-          "Ref" : "SageMakerInstanceSecurityGroup"
-        }
-      }
-    },
-    "emrMasterIngressKDCAdminSG" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 749,
-        "ToPort" : 749,
-        "SourceSecurityGroupId" : {
-          "Ref" : "SageMakerInstanceSecurityGroup"
-        }
-      }
-    },
-    "emrMasterIngressKinit464SG" : {
-      "Type" : "AWS::EC2::SecurityGroupIngress",
-      "Properties" : {
-        "GroupId" : {
-          "Ref" : "masterSecurityGroup"
-        },
-        "IpProtocol" : "tcp",
-        "FromPort" : 464,
-        "ToPort" : 464,
-        "SourceSecurityGroupId" : {
-          "Ref" : "SageMakerInstanceSecurityGroup"
-        }
-      }
-    },
-    "allowEMRFSAccessForUser1" : {
-      "Type" : "AWS::IAM::Role",
-      "Properties" : {
-        "RoleName" : {
-          "Fn::Sub" : "${AWS::StackName}-allowEMRFSAccessForUser1"
-        },
-        "AssumeRolePolicyDocument" : {
-          "Version" : "2012-10-17",
-          "Statement" : [
-            {
-              "Effect" : "Allow",
-              "Principal" : {
-                "AWS" : "*"
-              },
-              "Action" : [
-                "sts:AssumeRole"
-              ]
-            }
-          ]
-        },
-        "Path" : "/",
-        "Policies" : [
-          {
-            "PolicyName" : {
-              "Fn::Sub" : "${AWS::StackName}-emrFS-user1"
-            },
-            "PolicyDocument" : {
-              "Version" : "2012-10-17",
-              "Statement" : [
-                {
-                  "Action" : [
-                    "s3:ListBucket"
-                  ],
-                  "Resource" : [
-                    {
-                      "Fn::Sub" : "arn:aws:s3:::${S3Bucket}"
-                    }
-                  ],
-                  "Effect" : "Allow"
-                },
-                {
-                  "Action" : [
-                    "s3:*"
-                  ],
-                  "Resource" : [
-                    {
-                      "Fn::Sub" : "arn:aws:s3:::${S3Bucket}/*"
-                    }
-                  ],
-                  "Effect" : "Allow"
-                }
-              ]
-            }
-          }
-        ]
-      }
-    },
-    "allowEMRFSAccessForUser2" : {
-      "Type" : "AWS::IAM::Role",
-      "Properties" : {
-        "RoleName" : {
-          "Fn::Sub" : "${AWS::StackName}-allowEMRFSAccessForUser2"
-        },
-        "AssumeRolePolicyDocument" : {
-          "Version" : "2012-10-17",
-          "Statement" : [
-            {
-              "Effect" : "Allow",
-              "Principal" : {
-                "AWS" : "*"
-              },
-              "Action" : [
-                "sts:AssumeRole"
-              ]
-            }
-          ]
-        },
-        "Path" : "/",
-        "Policies" : [
-          {
-            "PolicyName" : {
-              "Fn::Sub" : "${AWS::StackName}-emrFS-user2"
-            },
-            "PolicyDocument" : {
-              "Version" : "2012-10-17",
-              "Statement" : [
-                {
-                  "Action" : [
-                    "s3:ListBucket"
-                  ],
-                  "Resource" : [
-                    "arn:aws:s3:::my-other-bucket"
-                  ],
-                  "Effect" : "Allow"
-                },
-                {
-                  "Action" : [
-                    "s3:*"
-                  ],
-                  "Resource" : [
-                    "arn:aws:s3:::my-other-bucket/*"
-                  ],
-                  "Effect" : "Allow"
-                }
-              ]
-            }
-          }
-        ]
-      }
-    }
-  },
-  "Outputs" : {
-    "VPCandCIDR" : {
-      "Description" : "VPC ID and CIDR block",
-      "Value" : {
-        "Fn::Join" : [
-          " - ",
-          [
-            {
-              "Ref" : "VPC"
-            },
-            {
-              "Fn::GetAtt" : [
-                "VPC",
-                "CidrBlock"
-              ]
-            }
-          ]
-        ]
-      }
-    },
-    "PublicSubnets" : {
-      "Description" : "All public subnet created",
-      "Value" : {
-        "Fn::Join" : [
-          "",
-          [
-            {
-              "Ref" : "PublicSubnet1"
-            }
-          ]
-        ]
-      }
-    },
-    "PrivateSubnets" : {
-      "Description" : "All private subnet created",
-      "Value" : {
-        "Fn::Join" : [
-          ", ",
-          [
-            {
-              "Ref" : "PrivateSubnet1"
-            }
-          ]
-        ]
-      }
-    },
-    "S3BucketName" : {
-      "Description" : "Bucket Name for Amazon S3 bucket",
-      "Value" : {
-        "Ref" : "S3Bucket"
-      }
-    },
-    "EMRMasterDNSName" : {
-      "Description" : "DNS Name of the EMR Master Node",
-      "Value" : {
-        "Fn::GetAtt" : [
-          "EMRCluster",
-          "MasterPublicDNS"
-        ]
-      }
-    }
-  }
+	"Description": "",
+	"Parameters": {
+		"EmrEc2InstanceType": {
+			"Type": "String",
+			"Description": "Emr Ec2 instance type",
+			"Default": "m1.medium"
+		},
+		"StepScriptFile": {
+			"Type": "String",
+			"Description": "Script for EMR Step",
+			"Default": "s3://aws-ml-blog/artifacts/Secure-Data-Analytics-with-SageMaker-Notebook-Instance-and-Kerberized-EMR-Cluster/configurekdc.sh"
+		},
+		"BootStrapScriptFile": {
+			"Type": "String",
+			"Description": "Script for EMR bootstrap actions",
+			"Default": "s3://aws-ml-blog/artifacts/Secure-Data-Analytics-with-SageMaker-Notebook-Instance-and-Kerberized-EMR-Cluster/createlinuxusers.sh"
+		}
+	},
+	"Metadata": {
+		"AWS::CloudFormation::Interface": {
+			"ParameterGroups": [
+				{
+					"Label": {
+						"default": "EMR Parameters"
+					},
+					"Parameters": [
+						"BootStrapScriptFile",
+						"StepScriptFile"
+					]
+				}
+			]
+		}
+	},
+	"Mappings": {
+		"ClusterConfigurations": {
+			"emr": {
+				"masterInstanceType": {
+					"Ref": "EmrEc2InstanceType"
+				},
+				"coreInstanceType": {
+					"Ref": "EmrEc2InstanceType"
+				},
+				"masterInstanceCount": 1,
+				"coreInstanceCount": 2,
+				"emrReleaseVersion": "emr-6.3.0"
+			},
+			"sagemaker": {
+				"sageMakerConfigName": "SageEMRConfig",
+				"sageMakerInstanceName": "SageEMR",
+				"sageMakerInstanceType": "ml.t2.medium"
+			}
+		},
+		"VpcConfigurations": {
+			"cidr": {
+				"Vpc": "10.0.0.0/16",
+				"PublicSubnet1": "10.0.10.0/24",
+				"PrivateSubnet1": "10.0.20.0/24"
+			}
+		}
+	},
+	"Resources": {
+		"VPC": {
+			"Type": "AWS::EC2::VPC",
+			"Properties": {
+				"CidrBlock": {
+					"Fn::FindInMap": [
+						"VpcConfigurations",
+						"cidr",
+						"Vpc"
+					]
+				},
+				"EnableDnsSupport": true,
+				"EnableDnsHostnames": true,
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": {
+							"Fn::Sub": "${AWS::StackName}-VPC"
+						}
+					}
+				]
+			}
+		},
+		"InternetGateway": {
+			"Type": "AWS::EC2::InternetGateway",
+			"Properties": {
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": {
+							"Fn::Sub": "${AWS::StackName}-IGW"
+						}
+					}
+				]
+			}
+		},
+		"InternetGatewayAttachment": {
+			"Type": "AWS::EC2::VPCGatewayAttachment",
+			"Properties": {
+				"InternetGatewayId": {
+					"Ref": "InternetGateway"
+				},
+				"VpcId": {
+					"Ref": "VPC"
+				}
+			}
+		},
+		"PublicSubnet1": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "VPC"
+				},
+				"AvailabilityZone": {
+					"Fn::Select": [
+						0,
+						{
+							"Fn::GetAZs": ""
+						}
+					]
+				},
+				"CidrBlock": {
+					"Fn::FindInMap": [
+						"VpcConfigurations",
+						"cidr",
+						"PublicSubnet1"
+					]
+				},
+				"MapPublicIpOnLaunch": true,
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": {
+							"Fn::Sub": "${AWS::StackName} Public Subnet (AZ1)"
+						}
+					}
+				]
+			}
+		},
+		"PrivateSubnet1": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "VPC"
+				},
+				"AvailabilityZone": {
+					"Fn::Select": [
+						0,
+						{
+							"Fn::GetAZs": ""
+						}
+					]
+				},
+				"CidrBlock": {
+					"Fn::FindInMap": [
+						"VpcConfigurations",
+						"cidr",
+						"PrivateSubnet1"
+					]
+				},
+				"MapPublicIpOnLaunch": false,
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": {
+							"Fn::Sub": "${AWS::StackName} Private Subnet (AZ1)"
+						}
+					}
+				]
+			}
+		},
+		"NatGateway1EIP": {
+			"Type": "AWS::EC2::EIP",
+			"DependsOn": "InternetGatewayAttachment",
+			"Properties": {
+				"Domain": "vpc"
+			}
+		},
+		"NatGateway1": {
+			"Type": "AWS::EC2::NatGateway",
+			"Properties": {
+				"AllocationId": {
+					"Fn::GetAtt": [
+						"NatGateway1EIP",
+						"AllocationId"
+					]
+				},
+				"SubnetId": {
+					"Ref": "PublicSubnet1"
+				}
+			}
+		},
+		"PublicRouteTable": {
+			"Type": "AWS::EC2::RouteTable",
+			"Properties": {
+				"VpcId": {
+					"Ref": "VPC"
+				},
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": {
+							"Fn::Sub": "${AWS::StackName} Public Routes"
+						}
+					}
+				]
+			}
+		},
+		"DefaultPublicRoute": {
+			"Type": "AWS::EC2::Route",
+			"DependsOn": "InternetGatewayAttachment",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "PublicRouteTable"
+				},
+				"DestinationCidrBlock": "0.0.0.0/0",
+				"GatewayId": {
+					"Ref": "InternetGateway"
+				}
+			}
+		},
+		"PublicSubnet1RouteTableAssociation": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "PublicRouteTable"
+				},
+				"SubnetId": {
+					"Ref": "PublicSubnet1"
+				}
+			}
+		},
+		"PrivateRouteTable1": {
+			"Type": "AWS::EC2::RouteTable",
+			"Properties": {
+				"VpcId": {
+					"Ref": "VPC"
+				},
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": {
+							"Fn::Sub": "${AWS::StackName} Private Routes (AZ1)"
+						}
+					}
+				]
+			}
+		},
+		"PrivateSubnet1RouteTableAssociation": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "PrivateRouteTable1"
+				},
+				"SubnetId": {
+					"Ref": "PrivateSubnet1"
+				}
+			}
+		},
+		"PrivateSubnet1InternetRoute": {
+			"Type": "AWS::EC2::Route",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "PrivateRouteTable1"
+				},
+				"DestinationCidrBlock": "0.0.0.0/0",
+				"NatGatewayId": {
+					"Ref": "NatGateway1"
+				}
+			}
+		},
+		"NoIngressSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupName": "no-ingress-sg",
+				"GroupDescription": "Security group with no ingress rule",
+				"VpcId": {
+					"Ref": "VPC"
+				}
+			}
+		},
+		"EC2SecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "Enable access to the EC2 host",
+				"VpcId": {
+					"Ref": "VPC"
+				}
+			}
+		},
+		"S3Endpoint": {
+			"Type": "AWS::EC2::VPCEndpoint",
+			"Properties": {
+				"ServiceName": {
+					"Fn::Sub": "com.amazonaws.${AWS::Region}.s3"
+				},
+				"VpcEndpointType": "Gateway",
+				"PolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": "*",
+							"Action": [
+								"*"
+							],
+							"Resource": [
+								"*"
+							]
+						}
+					]
+				},
+				"VpcId": {
+					"Ref": "VPC"
+				},
+				"RouteTableIds": [
+					{
+						"Ref": "PrivateRouteTable1"
+					}
+				]
+			}
+		},
+		"S3Bucket": {
+			"Type": "AWS::S3::Bucket"
+		},
+		"masterSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "EMR Master SG",
+				"VpcId": {
+					"Ref": "VPC"
+				}
+			}
+		},
+		"slaveSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "EMR Slave SG",
+				"VpcId": {
+					"Ref": "VPC"
+				}
+			}
+		},
+		"emrServiceSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "EMR Service Access SG",
+				"VpcId": {
+					"Ref": "VPC"
+				}
+			}
+		},
+		"emrMasterIngressSelfICMP": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "icmp",
+				"FromPort": -1,
+				"ToPort": -1,
+				"SourceSecurityGroupId": {
+					"Ref": "masterSecurityGroup"
+				}
+			}
+		},
+		"emrMasterIngressSlaveICMP": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "icmp",
+				"FromPort": -1,
+				"ToPort": -1,
+				"SourceSecurityGroupId": {
+					"Ref": "slaveSecurityGroup"
+				}
+			}
+		},
+		"emrMasterIngressSelfAllTcp": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 0,
+				"ToPort": 65535,
+				"SourceSecurityGroupId": {
+					"Ref": "masterSecurityGroup"
+				}
+			}
+		},
+		"emrMasterIngressSlaveAllTcp": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 0,
+				"ToPort": 65535,
+				"SourceSecurityGroupId": {
+					"Ref": "slaveSecurityGroup"
+				}
+			}
+		},
+		"emrMasterIngressSelfAllUdp": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "udp",
+				"FromPort": 0,
+				"ToPort": 65535,
+				"SourceSecurityGroupId": {
+					"Ref": "masterSecurityGroup"
+				}
+			}
+		},
+		"emrMasterIngressSlaveAllUdp": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "udp",
+				"FromPort": 0,
+				"ToPort": 65535,
+				"SourceSecurityGroupId": {
+					"Ref": "slaveSecurityGroup"
+				}
+			}
+		},
+		"emrMasterIngressLivySG": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 8998,
+				"ToPort": 8998,
+				"SourceSecurityGroupId": {
+					"Ref": "SageMakerInstanceSecurityGroup"
+				}
+			}
+		},
+		"emrMasterIngressServiceSg": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 8443,
+				"ToPort": 8443,
+				"SourceSecurityGroupId": {
+					"Ref": "emrServiceSecurityGroup"
+				}
+			}
+		},
+		"emrServiceIngressMasterSg": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "emrServiceSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 9443,
+				"ToPort": 9443,
+				"SourceSecurityGroupId": {
+					"Ref": "masterSecurityGroup"
+				}
+			}
+		},
+		"emrServiceEgressMaster": {
+			"Type": "AWS::EC2::SecurityGroupEgress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "emrServiceSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 8443,
+				"ToPort": 8443,
+				"DestinationSecurityGroupId": {
+					"Ref": "masterSecurityGroup"
+				}
+			}
+		},
+		"emrServiceEgressSlave": {
+			"Type": "AWS::EC2::SecurityGroupEgress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "emrServiceSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 8443,
+				"ToPort": 8443,
+				"DestinationSecurityGroupId": {
+					"Ref": "slaveSecurityGroup"
+				}
+			}
+		},
+		"emrSlaveIngressSelfICMP": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "slaveSecurityGroup"
+				},
+				"IpProtocol": "icmp",
+				"FromPort": -1,
+				"ToPort": -1,
+				"SourceSecurityGroupId": {
+					"Ref": "slaveSecurityGroup"
+				}
+			}
+		},
+		"emrSlaveIngressMasterICMP": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "slaveSecurityGroup"
+				},
+				"IpProtocol": "icmp",
+				"FromPort": -1,
+				"ToPort": -1,
+				"SourceSecurityGroupId": {
+					"Ref": "masterSecurityGroup"
+				}
+			}
+		},
+		"emrSlaveIngressSelfAllTcp": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "slaveSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 0,
+				"ToPort": 65535,
+				"SourceSecurityGroupId": {
+					"Ref": "slaveSecurityGroup"
+				}
+			}
+		},
+		"emrSlaveIngressMasterAllTcp": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "slaveSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 0,
+				"ToPort": 65535,
+				"SourceSecurityGroupId": {
+					"Ref": "masterSecurityGroup"
+				}
+			}
+		},
+		"emrSlaveIngressSelfAllUdp": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "slaveSecurityGroup"
+				},
+				"IpProtocol": "udp",
+				"FromPort": 0,
+				"ToPort": 65535,
+				"SourceSecurityGroupId": {
+					"Ref": "slaveSecurityGroup"
+				}
+			}
+		},
+		"emrSlaveIngressMasterAllUdp": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "slaveSecurityGroup"
+				},
+				"IpProtocol": "udp",
+				"FromPort": 0,
+				"ToPort": 65535,
+				"SourceSecurityGroupId": {
+					"Ref": "masterSecurityGroup"
+				}
+			}
+		},
+		"emrSlaveIngressServiceSg": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "slaveSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 8443,
+				"ToPort": 8443,
+				"SourceSecurityGroupId": {
+					"Ref": "emrServiceSecurityGroup"
+				}
+			}
+		},
+		"EMRCluster": {
+			"Type": "AWS::EMR::Cluster",
+			"Properties": {
+				"Applications": [
+					{
+						"Name": "Spark"
+					},
+					{
+						"Name": "Hive"
+					},
+					{
+						"Name": "Livy"
+					}
+				],
+				"AutoScalingRole": "EMR_AutoScaling_DefaultRole",
+				"Configurations": [
+					{
+						"Classification": "livy-conf",
+						"ConfigurationProperties": {
+							"livy.server.session.timeout": "2h"
+						}
+					}
+				],
+				"EbsRootVolumeSize": 100,
+				"Instances": {
+					"CoreInstanceGroup": {
+						"EbsConfiguration": {
+							"EbsBlockDeviceConfigs": [
+								{
+									"VolumeSpecification": {
+										"SizeInGB": "100",
+										"VolumeType": "gp2"
+									},
+									"VolumesPerInstance": "1"
+								}
+							],
+							"EbsOptimized": "true"
+						},
+						"InstanceCount": {
+							"Fn::FindInMap": [
+								"ClusterConfigurations",
+								"emr",
+								"coreInstanceCount"
+							]
+						},
+						"InstanceType": {
+							"Fn::FindInMap": [
+								"ClusterConfigurations",
+								"emr",
+								"coreInstanceType"
+							]
+						},
+						"Market": "ON_DEMAND",
+						"Name": "coreNode"
+					},
+					"MasterInstanceGroup": {
+						"EbsConfiguration": {
+							"EbsBlockDeviceConfigs": [
+								{
+									"VolumeSpecification": {
+										"SizeInGB": "100",
+										"VolumeType": "gp2"
+									},
+									"VolumesPerInstance": "1"
+								}
+							],
+							"EbsOptimized": "true"
+						},
+						"InstanceCount": 1,
+						"InstanceType": {
+							"Fn::FindInMap": [
+								"ClusterConfigurations",
+								"emr",
+								"masterInstanceType"
+							]
+						},
+						"Market": "ON_DEMAND",
+						"Name": "masterNode"
+					},
+					"Ec2SubnetId": {
+						"Ref": "PrivateSubnet1"
+					},
+					"EmrManagedMasterSecurityGroup": {
+						"Ref": "masterSecurityGroup"
+					},
+					"EmrManagedSlaveSecurityGroup": {
+						"Ref": "slaveSecurityGroup"
+					},
+					"ServiceAccessSecurityGroup": {
+						"Ref": "emrServiceSecurityGroup"
+					},
+					"TerminationProtected": false
+				},
+				"JobFlowRole": {
+					"Ref": "EMRClusterinstanceProfile"
+				},
+				"LogUri": {
+					"Fn::Sub": "s3://${S3Bucket}/elasticmapreduce/logs"
+				},
+				"Name": {
+					"Fn::Sub": "EMR-Cluster-${AWS::StackName}"
+				},
+				"ReleaseLabel": {
+					"Fn::FindInMap": [
+						"ClusterConfigurations",
+						"emr",
+						"emrReleaseVersion"
+					]
+				},
+				"ServiceRole": {
+					"Ref": "EMRClusterServiceRole"
+				},
+				"VisibleToAllUsers": true,
+				"SecurityConfiguration": {
+					"Ref": "securityConfiguration"
+				}
+			}
+		},
+		"EMRClusterServiceRole": {
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Statement": [
+						{
+							"Action": [
+								"sts:AssumeRole"
+							],
+							"Effect": "Allow",
+							"Principal": {
+								"Service": [
+									"elasticmapreduce.amazonaws.com"
+								]
+							}
+						}
+					],
+					"Version": "2012-10-17"
+				},
+				"ManagedPolicyArns": [
+					"arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole"
+				],
+				"Path": "/"
+			},
+			"Type": "AWS::IAM::Role"
+		},
+		"EMRClusterinstanceProfile": {
+			"Properties": {
+				"Path": "/",
+				"Roles": [
+					{
+						"Ref": "EMRClusterinstanceProfileRole"
+					}
+				]
+			},
+			"Type": "AWS::IAM::InstanceProfile"
+		},
+		"EMRClusterinstanceProfileRole": {
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Statement": [
+						{
+							"Action": [
+								"sts:AssumeRole"
+							],
+							"Effect": "Allow",
+							"Principal": {
+								"Service": [
+									"ec2.amazonaws.com"
+								]
+							}
+						}
+					],
+					"Version": "2012-10-17"
+				},
+				"ManagedPolicyArns": [
+					"arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role"
+				],
+				"Path": "/"
+			},
+			"Type": "AWS::IAM::Role"
+		},
+		"CleanUpBucketonDelete": {
+			"DependsOn": "CleanUpBucketonDeleteLambda",
+			"Type": "Custom::emptybucket",
+			"Properties": {
+				"ServiceToken": {
+					"Fn::GetAtt": [
+						"CleanUpBucketonDeleteLambda",
+						"Arn"
+					]
+				},
+				"inputBucketName": {
+					"Ref": "S3Bucket"
+				}
+			}
+		},
+		"CleanUpBucketonDeleteLambda": {
+			"DependsOn": [
+				"S3Bucket",
+				"CleanUpBucketonDeleteLambdaRole"
+			],
+			"Type": "AWS::Lambda::Function",
+			"Properties": {
+				"Description": "Empty bucket on delete",
+				"Handler": "index.lambda_handler",
+				"Role": {
+					"Fn::GetAtt": [
+						"CleanUpBucketonDeleteLambdaRole",
+						"Arn"
+					]
+				},
+				"Runtime": "python3.7",
+				"Timeout": 60,
+				"Code": {
+					"ZipFile": {
+						"Fn::Join": [
+							"\n",
+							[
+								"import json",
+								"import boto3",
+								"import urllib3",
+								"",
+								"def empty_bucket(bucket_name):",
+								"    print(\"Attempting to empty the bucket {0}\".format(bucket_name))",
+								"    s3_client = boto3.client('s3')",
+								"    s3 = boto3.resource('s3')",
+								"",
+								"    try:",
+								"        bucket = s3.Bucket(bucket_name).load()",
+								"    except ClientError:",
+								"        print(\"Bucket {0} does not exist\".format(bucket_name))",
+								"        return",
+								"    # Confirm if versioning is enabled",
+								"    version_status = s3_client.get_bucket_versioning(Bucket=bucket_name)",
+								"    status = version_status.get('Status','')",
+								"    if status == 'Enabled':",
+								"        version_status = s3_client.put_bucket_versioning(Bucket=bucket_name,",
+								"                                                   VersioningConfiguration={'Status': 'Suspended'})",
+								"    version_paginator = s3_client.get_paginator('list_object_versions')",
+								"    version_iterator = version_paginator.paginate(",
+								"        Bucket=bucket_name",
+								"    )",
+								"",
+								"    for page in version_iterator:",
+								"        print(page)",
+								"        if 'DeleteMarkers' in page:",
+								"            delete_markers = page['DeleteMarkers']",
+								"            if delete_markers is not None:",
+								"                for delete_marker in delete_markers:",
+								"                    key = delete_marker['Key']",
+								"                    versionId = delete_marker['VersionId']",
+								"                    s3_client.delete_object(Bucket=bucket_name, Key=key, VersionId=versionId)",
+								"        if 'Versions' in page and page['Versions'] is not None:",
+								"            versions = page['Versions']",
+								"            for version in versions:",
+								"                print(version)",
+								"                key = version['Key']",
+								"                versionId = version['VersionId']",
+								"                s3_client.delete_object(Bucket=bucket_name, Key=key, VersionId=versionId)",
+								"    object_paginator = s3_client.get_paginator('list_objects_v2')",
+								"    object_iterator = object_paginator.paginate(",
+								"        Bucket=bucket_name",
+								"    )",
+								"    for page in object_iterator:",
+								"        if 'Contents' in page:",
+								"            for content in page['Contents']:",
+								"                key = content['Key']",
+								"                s3_client.delete_object(Bucket=bucket_name, Key=content['Key'])",
+								"    print(\"Successfully emptied the bucket {0}\".format(bucket_name))",
+								"",
+								"",
+								"",
+								"def lambda_handler(event, context):",
+								"    try:",
+								"        bucket = event['ResourceProperties']['inputBucketName']",
+								"        if event['RequestType'] == 'Delete':",
+								"            empty_bucket(bucket)",
+								"        sendResponse(event, context, \"SUCCESS\")",
+								"    except Exception as e:",
+								"        print(e)",
+								"        sendResponse(event, context, \"FAILED\")",
+								"",
+								"def sendResponse(event, context, status):",
+								"    http = urllib3.PoolManager()",
+								"    response_body = {'Status': status,",
+								"                     'Reason': 'Log stream name: ' + context.log_stream_name,",
+								"                     'PhysicalResourceId': context.log_stream_name,",
+								"                     'StackId': event['StackId'],",
+								"                     'RequestId': event['RequestId'],",
+								"                     'LogicalResourceId': event['LogicalResourceId'],",
+								"                     'Data': json.loads(\"{}\")}",
+								"    http.request('PUT', event['ResponseURL'], body=json.dumps(response_body))"
+							]
+						]
+					}
+				}
+			}
+		},
+		"CleanUpBucketonDeleteLambdaRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": {
+								"Service": [
+									"lambda.amazonaws.com"
+								]
+							},
+							"Action": [
+								"sts:AssumeRole"
+							]
+						}
+					]
+				},
+				"Path": "/",
+				"Policies": [
+					{
+						"PolicyName": {
+							"Fn::Sub": "CleanUpBucketonDeleteLambdaPolicy-${AWS::StackName}"
+						},
+						"PolicyDocument": {
+							"Version": "2012-10-17",
+							"Statement": [
+								{
+									"Effect": "Allow",
+									"Action": [
+										"s3:*"
+									],
+									"Resource": [
+										{
+											"Fn::GetAtt": [
+												"S3Bucket",
+												"Arn"
+											]
+										},
+										{
+											"Fn::Join": [
+												"",
+												[
+													{
+														"Fn::GetAtt": [
+															"S3Bucket",
+															"Arn"
+														]
+													},
+													"/"
+												]
+											]
+										},
+										{
+											"Fn::Join": [
+												"",
+												[
+													{
+														"Fn::GetAtt": [
+															"S3Bucket",
+															"Arn"
+														]
+													},
+													"/*"
+												]
+											]
+										}
+									]
+								},
+								{
+									"Effect": "Deny",
+									"Action": [
+										"s3:DeleteBucket"
+									],
+									"Resource": "*"
+								},
+								{
+									"Effect": "Allow",
+									"Action": [
+										"logs:*"
+									],
+									"Resource": "*"
+								}
+							]
+						}
+					}
+				]
+			}
+		},
+		"SageMakerInstanceSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupName": "SMSG",
+				"GroupDescription": "Security group with no ingress rule",
+				"VpcId": {
+					"Ref": "VPC"
+				}
+			}
+		},
+		"SageMakerExecutionRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": {
+								"Service": [
+									"sagemaker.amazonaws.com"
+								]
+							},
+							"Action": [
+								"sts:AssumeRole"
+							]
+						}
+					]
+				},
+				"Path": "/",
+				"Policies": [
+					{
+						"PolicyName": {
+							"Fn::Sub": "${AWS::StackName}-sageemr"
+						},
+						"PolicyDocument": {
+							"Version": "2012-10-17",
+							"Statement": [
+								{
+									"Effect": "Allow",
+									"Resource": "*",
+									"Action": [
+										"elasticmapreduce:ListInstances"
+									]
+								}
+							]
+						}
+					}
+				],
+				"ManagedPolicyArns": [
+					"arn:aws:iam::aws:policy/AmazonSageMakerFullAccess",
+					"arn:aws:iam::aws:policy/AWSGlueConsoleSageMakerNotebookFullAccess",
+					"arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+				]
+			}
+		},
+		"SageMakerNotebookInstance": {
+			"DependsOn": "SageMakerLifeCycleConfig",
+			"Type": "AWS::SageMaker::NotebookInstance",
+			"Properties": {
+				"InstanceType": {
+					"Fn::FindInMap": [
+						"ClusterConfigurations",
+						"sagemaker",
+						"sageMakerInstanceType"
+					]
+				},
+				"RoleArn": {
+					"Fn::GetAtt": [
+						"SageMakerExecutionRole",
+						"Arn"
+					]
+				},
+				"SubnetId": {
+					"Ref": "PrivateSubnet1"
+				},
+				"NotebookInstanceName": {
+					"Fn::FindInMap": [
+						"ClusterConfigurations",
+						"sagemaker",
+						"sageMakerInstanceName"
+					]
+				},
+				"SecurityGroupIds": [
+					{
+						"Ref": "SageMakerInstanceSecurityGroup"
+					}
+				],
+				"LifecycleConfigName": {
+					"Fn::FindInMap": [
+						"ClusterConfigurations",
+						"sagemaker",
+						"sageMakerConfigName"
+					]
+				}
+			}
+		},
+		"SageMakerLifeCycleConfig": {
+			"Type": "AWS::SageMaker::NotebookInstanceLifecycleConfig",
+			"Properties": {
+				"OnCreate": [
+					{
+						"Content": {
+							"Fn::Base64": {
+								"Fn::Sub": [
+									"set -e\n# Identify EMR cluster, set up Livy and configure with cluster ID address\n\necho ${EMRCluster} > /tmp/emrclusterid\necho ${EMRDNSName} > /tmp/emrmasterdnsname\nwget -O /home/ec2-user/SageMaker/.sparkmagic/config.json https://raw.githubusercontent.com/jupyter-incubator/sparkmagic/master/sparkmagic/example_config.json \n\nwget -O /home/ec2-user/SageMaker/Covid19-Pandas-Spark.ipynb https://aws-ml-blog.s3.amazonaws.com/artifacts/Secure-Data-Analytics-with-SageMaker-Notebook-Instance-and-Kerberized-EMR-Cluster/Covid19-Pandas-Spark.ipynb\n\nsed -i -e \"s/localhost/${EMRDNSName}/g\" /home/ec2-user/SageMaker/.sparkmagic/config.json\nsed -i -e 's/None\"$/Kerberos\"/g' /home/ec2-user/SageMaker/.sparkmagic/config.json\nsed -i -e \"s/localhost/${EMRDNSName}/g\" /etc/krb5.conf\nsed -i -e \"s/mybucket/${S3Bucket}/g\" /home/ec2-user/SageMaker/Covid19-Pandas-Spark.ipynb\n",
+									{
+										"EMRDNSName": {
+											"Fn::GetAtt": [
+												"EMRCluster",
+												"MasterPublicDNS"
+											]
+										}
+									}
+								]
+							}
+						}
+					}
+				],
+				"OnStart": [
+					{
+						"Content": {
+							"Fn::Base64": {
+								"Fn::Sub": [
+									"set -e\nrm -rf /home/ec2-user/SageMaker/.sparkmagic/logs/*\n\n",
+									{
+										"EMRDNSName": {
+											"Fn::GetAtt": [
+												"EMRCluster",
+												"MasterPublicDNS"
+											]
+										}
+									}
+								]
+							}
+						}
+					}
+				],
+				"NotebookInstanceLifecycleConfigName": {
+					"Fn::FindInMap": [
+						"ClusterConfigurations",
+						"sagemaker",
+						"sageMakerConfigName"
+					]
+				}
+			}
+		},
+		"emrMasterIngressKDCSG": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 88,
+				"ToPort": 88,
+				"SourceSecurityGroupId": {
+					"Ref": "SageMakerInstanceSecurityGroup"
+				}
+			}
+		},
+		"emrMasterIngressKDCAdminSG": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 749,
+				"ToPort": 749,
+				"SourceSecurityGroupId": {
+					"Ref": "SageMakerInstanceSecurityGroup"
+				}
+			}
+		},
+		"emrMasterIngressKinit464SG": {
+			"Type": "AWS::EC2::SecurityGroupIngress",
+			"Properties": {
+				"GroupId": {
+					"Ref": "masterSecurityGroup"
+				},
+				"IpProtocol": "tcp",
+				"FromPort": 464,
+				"ToPort": 464,
+				"SourceSecurityGroupId": {
+					"Ref": "SageMakerInstanceSecurityGroup"
+				}
+			}
+		},
+		"allowEMRFSAccessForUser1": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"RoleName": {
+					"Fn::Sub": "${AWS::StackName}-allowEMRFSAccessForUser1"
+				},
+				"AssumeRolePolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": {
+								"AWS": "*"
+							},
+							"Action": [
+								"sts:AssumeRole"
+							]
+						}
+					]
+				},
+				"Path": "/",
+				"Policies": [
+					{
+						"PolicyName": {
+							"Fn::Sub": "${AWS::StackName}-emrFS-user1"
+						},
+						"PolicyDocument": {
+							"Version": "2012-10-17",
+							"Statement": [
+								{
+									"Action": [
+										"s3:ListBucket"
+									],
+									"Resource": [
+										{
+											"Fn::Sub": "arn:aws:s3:::${S3Bucket}"
+										}
+									],
+									"Effect": "Allow"
+								},
+								{
+									"Action": [
+										"s3:*"
+									],
+									"Resource": [
+										{
+											"Fn::Sub": "arn:aws:s3:::${S3Bucket}/*"
+										}
+									],
+									"Effect": "Allow"
+								}
+							]
+						}
+					}
+				]
+			}
+		},
+		"allowEMRFSAccessForUser2": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"RoleName": {
+					"Fn::Sub": "${AWS::StackName}-allowEMRFSAccessForUser2"
+				},
+				"AssumeRolePolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Allow",
+							"Principal": {
+								"AWS": "*"
+							},
+							"Action": [
+								"sts:AssumeRole"
+							]
+						}
+					]
+				},
+				"Path": "/",
+				"Policies": [
+					{
+						"PolicyName": {
+							"Fn::Sub": "${AWS::StackName}-emrFS-user2"
+						},
+						"PolicyDocument": {
+							"Version": "2012-10-17",
+							"Statement": [
+								{
+									"Action": [
+										"s3:ListBucket"
+									],
+									"Resource": [
+										"arn:aws:s3:::my-other-bucket"
+									],
+									"Effect": "Allow"
+								},
+								{
+									"Action": [
+										"s3:*"
+									],
+									"Resource": [
+										"arn:aws:s3:::my-other-bucket/*"
+									],
+									"Effect": "Allow"
+								}
+							]
+						}
+					}
+				]
+			}
+		}
+	},
+	"Outputs": {
+		"VPCandCIDR": {
+			"Description": "VPC ID and CIDR block",
+			"Value": {
+				"Fn::Join": [
+					" - ",
+					[
+						{
+							"Ref": "VPC"
+						},
+						{
+							"Fn::GetAtt": [
+								"VPC",
+								"CidrBlock"
+							]
+						}
+					]
+				]
+			}
+		},
+		"PublicSubnets": {
+			"Description": "All public subnet created",
+			"Value": {
+				"Fn::Join": [
+					"",
+					[
+						{
+							"Ref": "PublicSubnet1"
+						}
+					]
+				]
+			}
+		},
+		"PrivateSubnets": {
+			"Description": "All private subnet created",
+			"Value": {
+				"Fn::Join": [
+					", ",
+					[
+						{
+							"Ref": "PrivateSubnet1"
+						}
+					]
+				]
+			}
+		},
+		"S3BucketName": {
+			"Description": "Bucket Name for Amazon S3 bucket",
+			"Value": {
+				"Ref": "S3Bucket"
+			}
+		},
+		"EMRMasterDNSName": {
+			"Description": "DNS Name of the EMR Master Node",
+			"Value": {
+				"Fn::GetAtt": [
+					"EMRCluster",
+					"MasterPublicDNS"
+				]
+			}
+		}
+	}
 }
