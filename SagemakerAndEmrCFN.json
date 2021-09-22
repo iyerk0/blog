@@ -1,11 +1,6 @@
 {
 	"Description": "",
 	"Parameters": {
-		"EmrEc2InstanceType": {
-			"Type": "String",
-			"Description": "Emr Ec2 instance type",
-			"Default": "m1.medium"
-		},
 		"StepScriptFile": {
 			"Type": "String",
 			"Description": "Script for EMR Step",
@@ -36,10 +31,10 @@
 	"Mappings": {
 		"ClusterConfigurations": {
 			"emr": {
-				"masterInstanceType": "m1.medium",
-				"coreInstanceType": "m1.medium",
+				"masterInstanceType": "m6g.xlarge",
+				"coreInstanceType": "m6g.xlarge",
 				"masterInstanceCount": 1,
-				"coreInstanceCount": 2,
+				"coreInstanceCount": 1,
 				"emrReleaseVersion": "emr-6.3.0"
 			},
 			"sagemaker": {
@@ -1086,7 +1081,7 @@
 						"Content": {
 							"Fn::Base64": {
 								"Fn::Sub": [
-									"set -e\n# Identify EMR cluster, set up Livy and configure with cluster ID address\n\necho ${EMRCluster} > /tmp/emrclusterid\necho ${EMRDNSName} > /tmp/emrmasterdnsname\nwget -O /home/ec2-user/SageMaker/.sparkmagic/config.json https://raw.githubusercontent.com/jupyter-incubator/sparkmagic/master/sparkmagic/example_config.json \n\nwget -O /home/ec2-user/SageMaker/Covid19-Pandas-Spark.ipynb https://aws-ml-blog.s3.amazonaws.com/artifacts/Secure-Data-Analytics-with-SageMaker-Notebook-Instance-and-Kerberized-EMR-Cluster/Covid19-Pandas-Spark.ipynb\n\nsed -i -e \"s/localhost/${EMRDNSName}/g\" /home/ec2-user/SageMaker/.sparkmagic/config.json\nsed -i -e 's/None\"$/Kerberos\"/g' /home/ec2-user/SageMaker/.sparkmagic/config.json\nsed -i -e \"s/localhost/${EMRDNSName}/g\" /etc/krb5.conf\nsed -i -e \"s/mybucket/${S3Bucket}/g\" /home/ec2-user/SageMaker/Covid19-Pandas-Spark.ipynb\n",
+									"set -e\n# Identify EMR cluster, set up Livy and configure with cluster ID address\n\necho ${EMRCluster} > /tmp/emrclusterid\necho ${EMRDNSName} > /tmp/emrmasterdnsname\nwget -O /home/ec2-user/SageMaker/.sparkmagic/config.json https://raw.githubusercontent.com/jupyter-incubator/sparkmagic/master/sparkmagic/example_config.json \n\nwget -O /home/ec2-user/SageMaker/Covid19-Pandas-Spark.ipynb https://aws-ml-blog.s3.amazonaws.com/artifacts/Secure-Data-Analytics-with-SageMaker-Notebook-Instance-and-Kerberized-EMR-Cluster/Covid19-Pandas-Spark.ipynb\n\nsed -i -e \"s/localhost/${EMRDNSName}/g\" /home/ec2-user/SageMaker/.sparkmagic/config.json\nsed -i -e \"s/mybucket/${S3Bucket}/g\" /home/ec2-user/SageMaker/Covid19-Pandas-Spark.ipynb\n",
 									{
 										"EMRDNSName": {
 											"Fn::GetAtt": [
