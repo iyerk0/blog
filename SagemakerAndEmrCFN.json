@@ -26,7 +26,8 @@
 					},
 					"Parameters": [
 						"BootStrapScriptFile",
-						"StepScriptFile"
+						"StepScriptFile",
+						"EmrEc2InstanceType"
 					]
 				}
 			]
@@ -35,12 +36,8 @@
 	"Mappings": {
 		"ClusterConfigurations": {
 			"emr": {
-				"masterInstanceType": {
-					"Ref": "EmrEc2InstanceType"
-				},
-				"coreInstanceType": {
-					"Ref": "EmrEc2InstanceType"
-				},
+				"masterInstanceType": "m1.medium",
+				"coreInstanceType": "m1.medium",
 				"masterInstanceCount": 1,
 				"coreInstanceCount": 2,
 				"emrReleaseVersion": "emr-6.3.0"
@@ -715,10 +712,7 @@
 				"ServiceRole": {
 					"Ref": "EMRClusterServiceRole"
 				},
-				"VisibleToAllUsers": true,
-				"SecurityConfiguration": {
-					"Ref": "securityConfiguration"
-				}
+				"VisibleToAllUsers": true
 			}
 		},
 		"EMRClusterServiceRole": {
