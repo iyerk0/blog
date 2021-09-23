@@ -109,7 +109,20 @@ Then invoke the spark-shell as:
 ```
 spark-shell --packages joda-time:joda-time:2.10.1 --conf spark.jars.ivySettings=/home/hadoop/.ivy2/ivysettings.xml
 ```
+#### How to pre-install pandas 0.30.1 for all livy users in EMR
+* Use session manager to get a terminal into the master instance
+* Run the following:
+```sh
+sudo yum install python3-devel -y
+sudo pip3 install boto3==1.18.46
+sudo pip3 install Cython==0.29.24
+sudo pip3 install numpy==1.20.3
+sudo pip3 install pandas==1.3.3  -v
+#Pandas installation can take upto 10 minutes
+
+```
 ### References
+* [Install python developer package](https://stackoverflow.com/a/21530768/2643556)
 * [livy client template](https://github.com/cloudera/livy/blob/master/conf/livy-client.conf.template)
 * [increase session timeout in livy](https://aws.amazon.com/premiumsupport/knowledge-center/emr-session-not-found-http-request-error/)
 * [Spark context logging](https://stackoverflow.com/questions/25407550/how-do-i-log-from-my-python-spark-script)
