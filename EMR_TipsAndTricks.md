@@ -120,6 +120,14 @@ sudo pip3 install numpy==1.20.3
 sudo pip3 install pandas==1.3.3  -v
 #Pandas installation can take upto 10 minutes
 
+#Install matplotlib
+sudo pip3 install --upgrade --force-reinstall setuptools
+udo pip3 install certifi
+sudo pip3 install cppy
+sudo yum install -y libjpeg-devel
+sudo pip3 install matplotlib
+#Successfully installed matplotlib-3.4.3 pillow-8.3.2 pyparsing-2.4.7
+
 ```
 ### References
 * [Install python developer package](https://stackoverflow.com/a/21530768/2643556)
