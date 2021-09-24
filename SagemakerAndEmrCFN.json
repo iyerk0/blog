@@ -611,7 +611,7 @@
 				],
 				"BootstrapActions": [
 					{
-						"Name": "Dummy bootstrap action",
+						"Name": "Install pandas bootstrap action",
 						"ScriptBootstrapAction": {
 							"Args": [
 								"dummy",
