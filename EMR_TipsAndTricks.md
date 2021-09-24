@@ -111,23 +111,24 @@ spark-shell --packages joda-time:joda-time:2.10.1 --conf spark.jars.ivySettings=
 ```
 #### How to pre-install pandas 0.30.1 for all livy users in EMR
 * Use session manager to get a terminal into the master instance
-* Run the following:
+* Run the following script file:
 ```sh
+#!/bin/bash
 sudo yum install python3-devel -y
-sudo pip3 install boto3==1.18.46
-sudo pip3 install Cython==0.29.24
-sudo pip3 install numpy==1.20.3
+sudo pip3 install boto3==1.18.46 -v
+sudo pip3 install Cython==0.29.24 -v
+sudo pip3 install numpy==1.20.3 -v
 sudo pip3 install pandas==1.3.3  -v
 #Pandas installation can take upto 10 minutes
 
 #Install matplotlib
-sudo pip3 install --upgrade --force-reinstall setuptools
-udo pip3 install certifi
-sudo pip3 install cppy
+sudo pip3 install --upgrade --force-reinstall setuptools -v
+udo pip3 install certifi -v
+sudo pip3 install cppy -v
 sudo yum install -y libjpeg-devel
-sudo pip3 install matplotlib
+sudo pip3 install matplotlib==3.4.3 -v
 #Successfully installed matplotlib-3.4.3 pillow-8.3.2 pyparsing-2.4.7
-
+sudo pip3 freeze
 ```
 ### References
 * [Install python developer package](https://stackoverflow.com/a/21530768/2643556)
