@@ -9,7 +9,7 @@
 		"BootStrapScriptFile": {
 			"Type": "String",
 			"Description": "Script for EMR bootstrap actions",
-			"Default": "s3://aws-ml-blog/artifacts/Secure-Data-Analytics-with-SageMaker-Notebook-Instance-and-Kerberized-EMR-Cluster/createlinuxusers.sh"
+			"Default": "s3://trikaa1/emrscripts/install-pandas-bootstrap.sh"
 		}
 	},
 	"Metadata": {
@@ -607,6 +607,20 @@
 					},
 					{
 						"Name": "Livy"
+					}
+				],
+				"BootstrapActions": [
+					{
+						"Name": "Dummy bootstrap action",
+						"ScriptBootstrapAction": {
+							"Args": [
+								"dummy",
+								"parameter"
+							],
+							"Path": {
+								"Ref": "BootStrapScriptFile"
+							}
+						}
 					}
 				],
 				"AutoScalingRole": "EMR_AutoScaling_DefaultRole",
