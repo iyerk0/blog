@@ -110,6 +110,7 @@ Then invoke the spark-shell as:
 spark-shell --packages joda-time:joda-time:2.10.1 --conf spark.jars.ivySettings=/home/hadoop/.ivy2/ivysettings.xml
 ```
 #### How to pre-install pandas 0.30.1 for all livy users in EMR
+This solves the following [Stackoverflow question](https://stackoverflow.com/questions/68724073/install-pandas-on-emr-cluster) and [AWS Support Question](https://forums.aws.amazon.com/thread.jspa?messageID=989210&tstart=0)
 * Use session manager to get a terminal into the master instance
 * Run the following script file:
 ```sh
