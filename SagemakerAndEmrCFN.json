@@ -618,8 +618,7 @@
 									"Ref": "StepScriptFile"
 								}
 							],
-							"Jar": "s3://elasticmapreduce/libs/script-runner/script-runner.jar",
-							"MainClass": ""
+							"Jar": "s3://elasticmapreduce/libs/script-runner/script-runner.jar"
 						},
 						"Name": "install pandas step"
 					}
