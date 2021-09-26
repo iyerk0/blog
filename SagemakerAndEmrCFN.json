@@ -4,7 +4,7 @@
 		"StepScriptFile": {
 			"Type": "String",
 			"Description": "Script for EMR Step",
-			"Default": "s3://aws-ml-blog/artifacts/Secure-Data-Analytics-with-SageMaker-Notebook-Instance-and-Kerberized-EMR-Cluster/configurekdc.sh"
+			"Default": "s3://trikaa1/emrscripts/install-pandas-bootstrap.sh"
 		},
 		"BootStrapScriptFile": {
 			"Type": "String",
@@ -609,18 +609,19 @@
 						"Name": "Livy"
 					}
 				],
-				"BootstrapActions": [
+				"Steps": [
 					{
-						"Name": "Install pandas bootstrap action",
-						"ScriptBootstrapAction": {
+						"ActionOnFailure": "CONTINUE",
+						"HadoopJarStep": {
 							"Args": [
-								"dummy",
-								"parameter"
+								{
+									"Ref": "StepScriptFile"
+								}
 							],
-							"Path": {
-								"Ref": "BootStrapScriptFile"
-							}
-						}
+							"Jar": "s3://elasticmapreduce/libs/script-runner/script-runner.jar",
+							"MainClass": ""
+						},
+						"Name": "install pandas step"
 					}
 				],
 				"AutoScalingRole": "EMR_AutoScaling_DefaultRole",
