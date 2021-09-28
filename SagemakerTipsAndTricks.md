@@ -39,6 +39,23 @@ sc.install_pypi_package("boto3","<private_pypi_url>")
         "jars": ["s3://<your_bucket>/<your_jar>"]
 }
   ```
-  
+To add a jar file as a maven dependency do
+```json
+%%configure -f
+{
+	"conf": {
+		"spark.pyspark.python": "python3",
+		"spark.pyspark.virtualenv.enabled": "true",
+		"spark.pyspark.virtualenv.type": "native",
+		"spark.pyspark.virtualenv.bin.path": "/usr/bin/virtualenv",
+		"spark.yarn.appMasterEnv.SPARK_HOME": "/usr/lib/spark/",
+		"spark.yarn.appMasterEnv.PYSPARK_PYTHON": "/usr/bin/python3",
+		"spark.pyspark.virtualenv.python_version": "3.7",
+		"spark.jars.packages": "ml.dmlc:xgboost4j:0.72,ml.dmlc:xgboost4j-spark:0.72"
+	}
+}
+```  
+the maven coordinates are specified in `groupId:artifactId:version` and multiple dependencies are specified in a comma separated format
+From: https://community.cloudera.com/t5/Support-Questions/How-to-import-External-Libraries-for-Livy-Interpreter-using/td-p/171812
   #### References
   * [Guidance to install python libs via sparkmagic kernel](https://aws.amazon.com/blogs/big-data/install-python-libraries-on-a-running-cluster-with-emr-notebooks/)
