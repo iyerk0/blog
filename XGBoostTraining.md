@@ -76,6 +76,10 @@ order (MRO) for bases object, JavaModel, JavaPredictionModel, JavaMLWritable, XG
 
 POtential solution: https://stackoverflow.com/questions/29214888/typeerror-cannot-create-a-consistent-method-resolution-order-mro
 
+### Issue 3
+`NoClassDefFoundError: scala/Product$class`
+Solution: https://stackoverflow.com/questions/44387404/noclassdeffounderror-scala-productclass move to scala 2.12 version of the xgboost4j libs
+
 #### References
 * [XGBoost4J-Spark Tutorial](https://xgboost.readthedocs.io/en/latest/jvm/xgboost4j_spark_tutorial.html)
 * [XGBoost and Pyspark](https://towardsdatascience.com/pyspark-and-xgboost-integration-tested-on-the-kaggle-titanic-dataset-4e75a568bdb)
