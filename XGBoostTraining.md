@@ -79,9 +79,12 @@ POtential solution: https://stackoverflow.com/questions/29214888/typeerror-canno
 ### Issue 3
 `NoClassDefFoundError: scala/Product$class`
 Solution: https://stackoverflow.com/questions/44387404/noclassdeffounderror-scala-productclass move to scala 2.12 version of the xgboost4j libs
+More probable cause: https://stackoverflow.com/questions/60859322/typeerror-javapackage-object-is-not-callable-for-xgboost-in-pyspark
+
 
 #### References
 * [XGBoost4J-Spark Tutorial](https://xgboost.readthedocs.io/en/latest/jvm/xgboost4j_spark_tutorial.html)
 * [XGBoost and Pyspark](https://towardsdatascience.com/pyspark-and-xgboost-integration-tested-on-the-kaggle-titanic-dataset-4e75a568bdb)
 * [Good explanation of XGBoost classification loss functions](https://towardsdatascience.com/xgboost-mathematics-explained-58262530904a)
 * [How to train xgboost with spark databricks](https://databricks.com/blog/2020/11/16/how-to-train-xgboost-with-spark.html)
+* [Pyspark cheatsheet](http://datacamp-community-prod.s3.amazonaws.com/acfa4325-1d43-4542-8ce4-bea2d287db10)
