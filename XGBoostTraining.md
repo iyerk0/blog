@@ -81,10 +81,51 @@ POtential solution: https://stackoverflow.com/questions/29214888/typeerror-canno
 Solution: https://stackoverflow.com/questions/44387404/noclassdeffounderror-scala-productclass move to scala 2.12 version of the xgboost4j libs
 More probable cause: https://stackoverflow.com/questions/60859322/typeerror-javapackage-object-is-not-callable-for-xgboost-in-pyspark
 
+### Stack details: 
+* EMR release: 6.3.0
+* Java JDK: 1.8.0_282
+* Emr installed scala version 2-12.10
+* Spark version:  3.1.1-amzn-0
+* Python version: 3.7
+* livy version: 
+### Install pyspark and pycharm
+` pip install pyspark==3.1.1`
+To see pip dependency tree do:
+```
+pip install pipdeptree
+$ pipdeptree -p pyspark
+Ignoring invalid distribution -ffi (c:\users\k.iyer\anaconda3\lib\site-packages)
 
+Warning!!! Possibly conflicting dependencies found:
+* apache-airflow==1.10.10
+ - pandas [required: >=0.17.1,<1.0.0, installed: 1.0.5]
+ - jinja2 [required: >=2.10.1,<2.11.0, installed: 2.11.2]
+ - werkzeug [required: <1.0.0, installed: 1.0.1]
+* astroid==2.3.3
+ - typed-ast [required: >=1.4.0,<1.5, installed: ?]
+* msal-extensions==0.2.2
+ - portalocker [required: ~=1.6, installed: 1.0.0]
+* pexpect==4.8.0
+ - ptyprocess [required: >=0.5, installed: ?]
+* pytest-astropy==0.8.0
+ - pytest-filter-subpackage [required: >=0.1, installed: ?]
+ - pytest-cov [required: >=2.0, installed: ?]
+* QDarkStyle==2.8
+ - helpdev [required: >=0.6.2, installed: ?]
+* spyder==4.0.1
+ - pyqt5 [required: <5.13, installed: ?]
+ - pyqtwebengine [required: <5.13, installed: ?]
+------------------------------------------------------------------------
+pyspark==3.1.1
+  - py4j [required: ==0.10.9, installed: 0.10.9]
+
+
+```
 #### References
 * [XGBoost4J-Spark Tutorial](https://xgboost.readthedocs.io/en/latest/jvm/xgboost4j_spark_tutorial.html)
 * [XGBoost and Pyspark](https://towardsdatascience.com/pyspark-and-xgboost-integration-tested-on-the-kaggle-titanic-dataset-4e75a568bdb)
 * [Good explanation of XGBoost classification loss functions](https://towardsdatascience.com/xgboost-mathematics-explained-58262530904a)
 * [How to train xgboost with spark databricks](https://databricks.com/blog/2020/11/16/how-to-train-xgboost-with-spark.html)
 * [Pyspark cheatsheet](http://datacamp-community-prod.s3.amazonaws.com/acfa4325-1d43-4542-8ce4-bea2d287db10)
+* [Install Pyspark](https://www.datacamp.com/community/tutorials/apache-spark-python)
+* [How to package specific libraries for pyspark using virtualenv](https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-virtualenv)
