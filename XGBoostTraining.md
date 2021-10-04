@@ -121,6 +121,29 @@ pyspark==3.1.1
 
 
 ```
+To run pyspark in pycharm
+
+In git bash run:
+```
+conda init bash
+# List all environments
+conda env list
+# Create pyspark_env
+conda create -n pyspark_env
+#Start pyspark: 
+pyspark.cmd
+
+```
+
+References
+Conda cheatsheet: https://docs.conda.io/projects/conda/en/4.6.0/_downloads/52a95608c49671267e40c689e0bc00ca/conda-cheatsheet.pdf
+Pyspark installation: https://spark.apache.org/docs/latest/api/python/getting_started/install.html
+Pyspark in pycharm: https://gongster.medium.com/how-to-use-pyspark-in-pycharm-ide-2fd8997b1cdd
+
+How to link PyCharm with PySpark? https://stackoverflow.com/a/34714207/2643556
+spark-xgboost PySpark wrapper for XGBoost4J-Spark: https://github.com/sllynn/spark-xgboost/blob/master/examples/spark-xgboost_adultdataset.ipynb
+
+
 #### References
 * [XGBoost4J-Spark Tutorial](https://xgboost.readthedocs.io/en/latest/jvm/xgboost4j_spark_tutorial.html)
 * [XGBoost and Pyspark](https://towardsdatascience.com/pyspark-and-xgboost-integration-tested-on-the-kaggle-titanic-dataset-4e75a568bdb)
