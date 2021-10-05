@@ -150,6 +150,8 @@ Downloaded windows jar at: https://github.com/criteo-forks/xgboost-jars/releases
 
 
 #### References
+Install XGBoost in EMR: https://towardsdatascience.com/install-xgboost-for-aws-emr-notebook-environment-f964facb8420
+
 Conda cheatsheet: https://docs.conda.io/projects/conda/en/4.6.0/_downloads/52a95608c49671267e40c689e0bc00ca/conda-cheatsheet.pdf
 
 Pyspark installation: https://spark.apache.org/docs/latest/api/python/getting_started/install.html
