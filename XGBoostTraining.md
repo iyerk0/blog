@@ -137,6 +137,12 @@ pyspark.cmd
 Workbook user: https://github.com/sllynn/spark-xgboost/blob/master/examples/spark-xgboost_adultdataset.ipynb
 
 Dataset: https://archive.ics.uci.edu/ml/machine-learning-databases/adult/ 
+
+Download xgboost jars: 
+https://mvnrepository.com/artifact/ml.dmlc/xgboost4j_2.12/1.0.0
+https://mvnrepository.com/artifact/ml.dmlc/xgboost4j-spark_2.12/1.0.0
+and install in C:\Users\<User.home>\Miniconda3\Lib\site-packages\pyspark\jars
+In pycharm >> Settings >> ... >> Python Console , set environment variable as `SPARK_HOME=C:\Users\<User.home>\Miniconda3\Lib\site-packages\pyspark`
 References
 Conda cheatsheet: https://docs.conda.io/projects/conda/en/4.6.0/_downloads/52a95608c49671267e40c689e0bc00ca/conda-cheatsheet.pdf
 
