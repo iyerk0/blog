@@ -94,7 +94,7 @@ To see pip dependency tree do:
 ```
 pip install pipdeptree
 $ pipdeptree -p pyspark
-Ignoring invalid distribution -ffi (c:\users\k.iyer\anaconda3\lib\site-packages)
+Ignoring invalid distribution -ffi (c:\users\<user>\anaconda3\lib\site-packages)
 
 Warning!!! Possibly conflicting dependencies found:
 * apache-airflow==1.10.10
@@ -171,6 +171,21 @@ spark-xgboost PySpark wrapper for XGBoost4J-Spark: https://github.com/sllynn/spa
 * To build xgboost on amazonlinux custom branch
   * With Tests: `.\xgboost\jvm-packages\dev\build-linux.cmd`
   * Skip Tests: `.\xgboost\jvm-packages\dev\build-linux.cmd --skip-tests`
+
+* To execute in steps:
+  * Build docker image: 
+  ```
+  #cd to the location of the Dockerfile
+  /c/software/xgboost/jvm-packages/dev
+  docker build -t dmlc/xgboost4j-build .
+  ```
+  
+  * Run tests once image is built: 
+ ```
+ docker run   -it   --rm    --memory 8g   --env JAVA_OPTS="-Xmx6g"   --env MAVEN_OPTS="-Xmx2g"   --ulimit core=-1   --volume "C:\software\xgboost":/xgboost   --volume "C:\Users\<User>\.m2":/root/.m2   dmlc/xgboost4j-build bash
+ # You should now be in the docker shell   
+bash-4.2# /xgboost/jvm-packages/dev/package-linux.sh --skip-tests 
+ ```
 
 ##### References
 * [Docker cheatsheet](https://www.docker.com/sites/default/files/d8/2019-09/docker-cheat-sheet.pdf)
