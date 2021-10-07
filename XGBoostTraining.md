@@ -166,7 +166,7 @@ spark-xgboost PySpark wrapper for XGBoost4J-Spark: https://github.com/sllynn/spa
 * follow windows instructions in the readme >> Development>>Windows: https://github.com/dmlc/xgboost/tree/d8cb395380990cc627e6d208e7e9594a24cb8c2e/jvm-packages this is the specific commit that was latest on that date
 * Switched the base image type in the dockerfile to [amazonlinux](https://hub.docker.com/_/amazonlinux) since that is the image that would be compatible with EC2 instances. In addition update references which  no longer supported gcc libraries centos-6 libs in Dockerfile to next supported version see: https://linuxize.com/post/how-to-install-gcc-compiler-on-centos-7/ . `sudo yum group install "Development Tools"`. This is available in the following PR XXXX
 * References direct CPP path as per: https://stackoverflow.com/a/45691080/2643556
-* Ensure that wsl for windows memory is limited to 1 GB of memory: https://blog.simonpeterdebbarma.com/2020-04-memory-and-wsl/
+* Ensure that wsl for windows memory is limited to 1.5 GB of memory: https://blog.simonpeterdebbarma.com/2020-04-memory-and-wsl/ Otherwise the mvn build inside docker will fail with insufficient memory
 * How to restart WSL after config change: https://www.how2shout.com/how-to/how-to-reboot-wsl-windows-subsystem-linux-in-windows-10.html
 * To build xgboost on amazonlinux custom branch
   * With Tests: `.\xgboost\jvm-packages\dev\build-linux.cmd`
