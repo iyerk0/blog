@@ -162,7 +162,18 @@ Pyspark in pycharm: https://gongster.medium.com/how-to-use-pyspark-in-pycharm-id
 How to link PyCharm with PySpark? https://stackoverflow.com/a/34714207/2643556
 spark-xgboost PySpark wrapper for XGBoost4J-Spark: https://github.com/sllynn/spark-xgboost/blob/master/examples/spark-xgboost_adultdataset.ipynb
 
+#### Process for building XGBoost in local laptop
+* follow windows instructions in the readme >> Development>>Windows: https://github.com/dmlc/xgboost/tree/d8cb395380990cc627e6d208e7e9594a24cb8c2e/jvm-packages this is the specific commit that was latest on that date
+* Switched the base image type in the dockerfile to [amazonlinux](https://hub.docker.com/_/amazonlinux) since that is the image that would be compatible with EC2 instances. In addition update references which  no longer supported gcc libraries centos-6 libs in Dockerfile to next supported version see: https://linuxize.com/post/how-to-install-gcc-compiler-on-centos-7/ . `sudo yum group install "Development Tools"`. This is available in the following PR XXXX
+* References direct CPP path as per: https://stackoverflow.com/a/45691080/2643556
+* Ensure that wsl for windows memory is limited to 1 GB of memory: https://blog.simonpeterdebbarma.com/2020-04-memory-and-wsl/
+* How to restart WSL after config change: https://www.how2shout.com/how-to/how-to-reboot-wsl-windows-subsystem-linux-in-windows-10.html
+* To build xgboost on amazonlinux custom branch
+  * With Tests: `.\xgboost\jvm-packages\dev\build-linux.cmd`
+  * Skip Tests: `.\xgboost\jvm-packages\dev\build-linux.cmd --skip-tests`
 
+##### References
+* [Docker cheatsheet](https://www.docker.com/sites/default/files/d8/2019-09/docker-cheat-sheet.pdf)
 #### References
 * [XGBoost4J-Spark Tutorial](https://xgboost.readthedocs.io/en/latest/jvm/xgboost4j_spark_tutorial.html)
 * [XGBoost and Pyspark](https://towardsdatascience.com/pyspark-and-xgboost-integration-tested-on-the-kaggle-titanic-dataset-4e75a568bdb)
