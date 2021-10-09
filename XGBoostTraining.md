@@ -186,6 +186,56 @@ spark-xgboost PySpark wrapper for XGBoost4J-Spark: https://github.com/sllynn/spa
  # You should now be in the docker shell   
 bash-4.2# /xgboost/jvm-packages/dev/package-linux.sh --skip-tests 
  ```
+ 
+ ### Build xgboost in ec2 machine
+ ```
+   
+yum install git
+git clone --recursive https://github.com/dmlc/xgboost.git
+cd xgboost/
+cd jvm-packages/
+cd dev/
+cd ~
+mkdir maven
+cd maven/
+wget https://dlcdn.apache.org/maven/maven-3/3.8.3/binaries/apache-maven-3.8.3-bin.zip
+unzip apache-maven-3.8.3-bin.zip 
+cd ..
+mv apache-maven-3.8.3 ../
+ls
+cd  ..
+rm -rf maven/
+mv apache-maven-3.8.3 maven
+export PATH=$PATH:/root/maven/bin/
+vim dev/build-linux.sh 
+yum -y group install "Development Tools" &&    yum install -y bzip2 &&     wget https://repo.continuum.io/miniconda/Miniconda3-4.5.12-Linux-x86_64.sh &&     bash Miniconda3-4.5.12-Linux-x86_64.sh -b -p /opt/python &&     wget -nv -nc https://cmake.org/files/v3.21/cmake-3.21.3-linux-x86_64.sh --no-check-certificate &&     bash cmake-3.21.3-linux-x86_64.sh --skip-license --prefix=/us
+export CC=/usr/bin/gcc
+export CXX=/usr/bin/g++
+export CPP=/usr/bin/cpp
+ 
+mvn --batch-mode clean package -DskipTests
+# from https://gist.github.com/1duo/38af1abd68a2c7fe5087532ab968574e
+cd ~
+mkdir cmake
+cd cmake/
+wget https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3.tar.gz
+ls
+tar zxvf cmake-3.*
+ls
+cd cmake-3.*
+./bootstrap --prefix=/usr/local
+history
+make -j$(nproc)
+make install
+cmake --version
+/usr/local/bin/cmake --version
+export PATH=$PATH:/usr/local/bin/
+cmake --version
+cd ~/xgboost/jvm-packages/
+ls
+mvn --batch-mode clean package -DskipTests
+   
+ ```
 
 ##### References
 * [Docker cheatsheet](https://www.docker.com/sites/default/files/d8/2019-09/docker-cheat-sheet.pdf)
