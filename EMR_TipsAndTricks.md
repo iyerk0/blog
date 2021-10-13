@@ -132,6 +132,7 @@ sudo pip3 install matplotlib==3.4.3 -v
 sudo pip3 freeze
 ```
 ### References
+* [Using Scala Code from Java](https://lampwww.epfl.ch/~michelou/scala/using-scala-from-java.html)
 * [Pyspark under the covers](https://aseigneurin.github.io/2016/09/01/spark-calling-scala-code-from-pyspark.html)
 * [Install python developer package](https://stackoverflow.com/a/21530768/2643556)
 * [livy client template](https://github.com/cloudera/livy/blob/master/conf/livy-client.conf.template)
